@@ -3,6 +3,7 @@ services:
     name: category-clash-api
     runtime: python
     plan: free
+    region: singapore
     rootDir: backend
     buildCommand: pip install --upgrade pip && pip install -r requirements.txt
     startCommand: ./scripts/render-start.sh
