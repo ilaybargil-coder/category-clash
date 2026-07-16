@@ -14,7 +14,6 @@ export function useBackendHealth() {
   const [retryVersion, setRetryVersion] = useState(0);
 
   const retryNow = useCallback(() => {
-    setStatus("checking");
     setRetryVersion((version) => version + 1);
   }, []);
 

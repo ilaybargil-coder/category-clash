@@ -6,7 +6,10 @@ import { useBackendHealth } from "@/hooks/useBackendHealth";
 export default function BackendWakeupGate({ children }: { children: ReactNode }) {
   const { status, attempts, retryNow } = useBackendHealth();
 
-  if (status === "ready") return children;
+  // Do not flash a full-page wake screen on every refresh. The app remains
+  // usable while the cheap health probe runs in the background; we only block
+  // after a real network failure or timeout indicates that Render is asleep.
+  if (status !== "waiting") return children;
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-5 px-6 text-center">

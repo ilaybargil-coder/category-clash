@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 
-import { act, renderHook } from "@testing-library/react";
+import { act, render, renderHook, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import BackendWakeupGate from "@/components/BackendWakeupGate";
 import { useBackendHealth } from "./useBackendHealth";
 
 beforeEach(() => {
@@ -14,6 +15,32 @@ afterEach(() => {
 });
 
 describe("useBackendHealth", () => {
+  it("keeps the app visible while the initial health check is pending", () => {
+    vi.stubGlobal("fetch", vi.fn(() => new Promise(() => undefined)));
+
+    render(
+      <BackendWakeupGate>
+        <div>לובי המשחק</div>
+      </BackendWakeupGate>
+    );
+
+    expect(screen.getByText("לובי המשחק")).toBeTruthy();
+    expect(screen.queryByText("שרת המשחק מתעורר")).toBeNull();
+  });
+
+  it("shows the wake screen only after a real health failure", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("sleeping")));
+
+    render(
+      <BackendWakeupGate>
+        <div>לובי המשחק</div>
+      </BackendWakeupGate>
+    );
+    await act(async () => Promise.resolve());
+
+    expect(screen.getByText("שרת המשחק מתעורר")).toBeTruthy();
+  });
+
   it("opens the gate when health responds successfully", async () => {
     vi.stubGlobal(
       "fetch",
