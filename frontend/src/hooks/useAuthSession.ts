@@ -6,6 +6,7 @@ import {
   ApiError,
   clearSession,
   fetchProfile,
+  getUser,
   saveSession,
 } from "@/lib/api";
 import { getSupabaseClient } from "@/lib/supabase";
@@ -43,6 +44,15 @@ export function useAuthSession() {
 
       const accessToken = session.access_token;
       setToken(accessToken);
+      const cachedProfile = getUser();
+      if (cachedProfile) {
+        // Do not make a returning player wait for Render Free to wake. The
+        // profile is refreshed below, while the last known data stays usable.
+        saveSession(accessToken, cachedProfile);
+        setUser(cachedProfile);
+        setError(null);
+        setStatus("ready");
+      }
       try {
         const profile = await fetchProfile(accessToken);
         if (disposed || sequence !== syncGeneration.current) return;
@@ -58,6 +68,7 @@ export function useAuthSession() {
           setStatus("needs_profile");
           return;
         }
+        if (cachedProfile) return;
         setError(cause instanceof Error ? cause.message : "אימות המשתמש נכשל");
         setStatus("error");
       }

@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   clearSession: vi.fn(),
   fetchProfile: vi.fn(),
+  getUser: vi.fn(),
   saveSession: vi.fn(),
   getSession: vi.fn(),
   onAuthStateChange: vi.fn(),
@@ -24,6 +25,7 @@ vi.mock("@/lib/api", () => ({
   },
   clearSession: mocks.clearSession,
   fetchProfile: mocks.fetchProfile,
+  getUser: mocks.getUser,
   saveSession: mocks.saveSession,
 }));
 
@@ -54,6 +56,7 @@ function session(accessToken: string): Session {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.getUser.mockReturnValue(null);
   mocks.getSession.mockResolvedValue({ data: { session: session("token-1") } });
   mocks.fetchProfile.mockResolvedValue(profile);
   mocks.onAuthStateChange.mockReturnValue({
@@ -63,6 +66,21 @@ beforeEach(() => {
 });
 
 describe("useAuthSession", () => {
+  it("shows a cached profile without waiting for a sleeping backend", async () => {
+    mocks.getUser.mockReturnValue(profile);
+    mocks.fetchProfile.mockImplementation(() => new Promise(() => undefined));
+
+    const { result } = renderHook(() => useAuthSession());
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(result.current.status).toBe("ready");
+    expect(result.current.user).toEqual(profile);
+    expect(mocks.saveSession).toHaveBeenCalledWith("token-1", profile);
+  });
+
   it("restores a persisted Supabase session and syncs the game profile", async () => {
     const { result } = renderHook(() => useAuthSession());
 

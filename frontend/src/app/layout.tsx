@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import BackendWakeupGate from "@/components/BackendWakeupGate";
+import BackendWarmup from "@/components/BackendWarmup";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -20,7 +20,8 @@ export default function RootLayout({
   return (
     <html lang="he" dir="rtl">
       <body className="min-h-dvh bg-slate-100 font-sans text-slate-900 antialiased">
-        <BackendWakeupGate>{children}</BackendWakeupGate>
+        <BackendWarmup />
+        {children}
       </body>
     </html>
   );
