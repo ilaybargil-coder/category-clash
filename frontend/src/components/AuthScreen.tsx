@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createProfile } from "@/lib/api";
 import { getSupabaseClient } from "@/lib/supabase";
 import type { SessionUser } from "@/lib/types";
+import { isValidUsername, normalizeUsername } from "@/lib/username";
 
 interface Props {
   profileToken?: string | null;
@@ -24,8 +25,12 @@ export default function AuthScreen({ profileToken, onProfileReady }: Props) {
   const [message, setMessage] = useState<string | null>(null);
   const completingProfile = Boolean(profileToken);
 
-  async function finishProfile(token: string) {
-    const profile = await createProfile(token, username.trim(), displayName.trim());
+  async function finishProfile(
+    token: string,
+    cleanUsername: string,
+    cleanDisplayName: string
+  ) {
+    const profile = await createProfile(token, cleanUsername, cleanDisplayName);
     onProfileReady(token, profile);
   }
 
@@ -35,8 +40,20 @@ export default function AuthScreen({ profileToken, onProfileReady }: Props) {
     setMessage(null);
     setBusy(true);
     try {
+      const cleanUsername = normalizeUsername(username);
+      const cleanDisplayName = displayName.trim();
+
+      if (mode === "register" || completingProfile) {
+        if (!isValidUsername(cleanUsername)) {
+          throw new Error("שם משתמש חייב להכיל 3–24 אותיות באנגלית, מספרים או _");
+        }
+        if (cleanDisplayName.length < 2) {
+          throw new Error("הכינוי חייב להכיל לפחות שני תווים");
+        }
+      }
+
       if (completingProfile && profileToken) {
-        await finishProfile(profileToken);
+        await finishProfile(profileToken, cleanUsername, cleanDisplayName);
         return;
       }
 
@@ -50,12 +67,6 @@ export default function AuthScreen({ profileToken, onProfileReady }: Props) {
         return;
       }
 
-      if (!/^[A-Za-z0-9_]{3,24}$/.test(username)) {
-        throw new Error("שם משתמש חייב להכיל 3–24 אותיות באנגלית, מספרים או _");
-      }
-      if (displayName.trim().length < 2) {
-        throw new Error("הכינוי חייב להכיל לפחות שני תווים");
-      }
       if (password.length < 8) {
         throw new Error("הסיסמה חייבת להכיל לפחות 8 תווים");
       }
@@ -67,12 +78,15 @@ export default function AuthScreen({ profileToken, onProfileReady }: Props) {
         email: email.trim(),
         password,
         options: {
-          data: { username: username.toLowerCase(), display_name: displayName.trim() },
+          data: {
+            username: cleanUsername.toLowerCase(),
+            display_name: cleanDisplayName,
+          },
         },
       });
       if (authError) throw authError;
       if (data.session) {
-        await finishProfile(data.session.access_token);
+        await finishProfile(data.session.access_token, cleanUsername, cleanDisplayName);
       } else {
         setMessage("ההרשמה נקלטה. בדקו את האימייל כדי לאשר את החשבון.");
       }
@@ -121,6 +135,9 @@ export default function AuthScreen({ profileToken, onProfileReady }: Props) {
               <input
                 type="email"
                 autoComplete="email"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 required
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
@@ -136,12 +153,16 @@ export default function AuthScreen({ profileToken, onProfileReady }: Props) {
                 <input
                   dir="ltr"
                   autoComplete="username"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   required
                   minLength={3}
                   maxLength={24}
                   placeholder="ilay_123"
                   value={username}
                   onChange={(event) => setUsername(event.target.value)}
+                  onBlur={() => setUsername(normalizeUsername(username))}
                   className="w-full rounded-xl border-2 border-slate-200 px-4 py-3 text-left outline-none focus:border-violet-400"
                 />
               </label>
