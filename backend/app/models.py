@@ -1,0 +1,122 @@
+from datetime import datetime
+
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    username: Mapped[str] = mapped_column(String(32), unique=True, index=True)
+    display_name: Mapped[str] = mapped_column(String(64))
+    password_hash: Mapped[str] = mapped_column(String(128))
+    coins: Mapped[int] = mapped_column(Integer, default=0)
+    wins: Mapped[int] = mapped_column(Integer, default=0)
+    losses: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Question(Base):
+    __tablename__ = "questions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    text: Mapped[str] = mapped_column(Text, unique=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    answers: Mapped[list["ApprovedAnswer"]] = relationship(
+        back_populates="question", cascade="all, delete-orphan"
+    )
+
+
+class ApprovedAnswer(Base):
+    __tablename__ = "approved_answers"
+    __table_args__ = (UniqueConstraint("question_id", "canonical"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    question_id: Mapped[int] = mapped_column(
+        ForeignKey("questions.id", ondelete="CASCADE"), index=True
+    )
+    canonical: Mapped[str] = mapped_column(String(120))
+    semantic_group: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    question: Mapped["Question"] = relationship(back_populates="answers")
+    aliases: Mapped[list["AnswerAlias"]] = relationship(
+        back_populates="answer", cascade="all, delete-orphan"
+    )
+
+
+class AnswerAlias(Base):
+    __tablename__ = "answer_aliases"
+    __table_args__ = (UniqueConstraint("approved_answer_id", "alias"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    approved_answer_id: Mapped[int] = mapped_column(
+        ForeignKey("approved_answers.id", ondelete="CASCADE"), index=True
+    )
+    alias: Mapped[str] = mapped_column(String(120))
+
+    answer: Mapped["ApprovedAnswer"] = relationship(back_populates="aliases")
+
+
+class Match(Base):
+    __tablename__ = "matches"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    code: Mapped[str] = mapped_column(String(12), index=True)
+    player1_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    player2_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    winner_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    score_p1: Mapped[int] = mapped_column(Integer, default=0)
+    score_p2: Mapped[int] = mapped_column(Integer, default=0)
+    status: Mapped[str] = mapped_column(String(20), default="ACTIVE")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class Round(Base):
+    __tablename__ = "rounds"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    match_id: Mapped[int] = mapped_column(ForeignKey("matches.id", ondelete="CASCADE"), index=True)
+    round_no: Mapped[int] = mapped_column(Integer)
+    question_id: Mapped[int] = mapped_column(ForeignKey("questions.id"))
+    starter_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    winner_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    end_reason: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class SubmittedAnswer(Base):
+    __tablename__ = "submitted_answers"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    # Server-generated unique id per logical submission; the DB-level unique
+    # constraint guarantees one row per submission even under retries.
+    submission_id: Mapped[str] = mapped_column(String(32), unique=True)
+    client_command_id: Mapped[str | None] = mapped_column(String(36), nullable=True, unique=True)
+    round_id: Mapped[int] = mapped_column(ForeignKey("rounds.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    raw_text: Mapped[str] = mapped_column(String(200))
+    normalized_text: Mapped[str] = mapped_column(String(200), index=True)
+    status: Mapped[str] = mapped_column(String(20))
+    matched_answer_id: Mapped[int | None] = mapped_column(
+        ForeignKey("approved_answers.id"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

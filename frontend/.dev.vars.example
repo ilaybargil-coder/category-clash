@@ -1,0 +1,3 @@
+# Public URLs only. Copy to .dev.vars for local Cloudflare preview.
+NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_WS_URL=ws://localhost:8000
