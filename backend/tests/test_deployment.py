@@ -1,12 +1,15 @@
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
+import jwt
 import pytest
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
+import app.auth as auth_module
 import app.main as main_module
 from app.api.routes import demo_users
-from app.auth import create_access_token, decode_token
+from app.auth import create_access_token, decode_token, verify_supabase_identity
 from app.config import Settings, settings
 from app.main import app
 
@@ -57,6 +60,21 @@ def test_ready_returns_success_when_database_responds(monkeypatch):
     response = TestClient(app).get("/ready")
     assert response.status_code == 200
     assert response.json() == {"status": "ready"}
+
+
+def test_ready_rejects_incomplete_supabase_auth_configuration(monkeypatch):
+    async def available() -> bool:
+        return True
+
+    monkeypatch.setattr(main_module, "database_is_ready", available)
+    monkeypatch.setattr(settings, "auth_mode", "supabase")
+    monkeypatch.setattr(settings, "supabase_url", "https://project.supabase.co")
+    monkeypatch.setattr(settings, "supabase_publishable_key", "")
+
+    response = TestClient(app).get("/ready")
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": "Authentication is not configured"}
 
 
 def test_cors_preflight_allows_only_configured_frontend_origin():
@@ -141,3 +159,73 @@ async def test_demo_picker_preloads_signed_sessions_for_instant_selection():
     decoded = [decode_token(item.token) for item in sessions]
     assert all(item is not None for item in decoded)
     assert [item.username for item in decoded if item is not None] == ["dana", "omer"]
+
+
+async def test_supabase_access_token_is_validated_and_briefly_cached(monkeypatch):
+    auth_module._identity_cache.clear()
+    monkeypatch.setattr(settings, "supabase_url", "https://project.supabase.co")
+    monkeypatch.setattr(settings, "supabase_publishable_key", "public-key")
+    monkeypatch.setattr(settings, "auth_identity_cache_seconds", 60)
+    calls = 0
+
+    class Response:
+        status_code = 200
+
+        @staticmethod
+        def json():
+            return {
+                "id": "11111111-1111-4111-8111-111111111111",
+                "email": "player@example.com",
+                "user_metadata": {"display_name": "שחקן"},
+            }
+
+    class Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def get(self, _url, headers):
+            nonlocal calls
+            calls += 1
+            assert headers["apikey"] == "public-key"
+            return Response()
+
+    monkeypatch.setattr(auth_module.httpx, "AsyncClient", lambda **_kwargs: Client())
+    token = jwt.encode(
+        {"exp": datetime.now(timezone.utc) + timedelta(minutes=5)},
+        "test-secret-at-least-thirty-two-bytes",
+        algorithm="HS256",
+    )
+
+    first = await verify_supabase_identity(token)
+    second = await verify_supabase_identity(token)
+
+    assert first is not None
+    assert first.auth_user_id == "11111111-1111-4111-8111-111111111111"
+    assert second == first
+    assert calls == 1
+
+
+async def test_invalid_supabase_access_token_is_rejected(monkeypatch):
+    auth_module._identity_cache.clear()
+    monkeypatch.setattr(settings, "supabase_url", "https://project.supabase.co")
+    monkeypatch.setattr(settings, "supabase_publishable_key", "public-key")
+
+    class Response:
+        status_code = 401
+
+    class Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def get(self, _url, headers):
+            return Response()
+
+    monkeypatch.setattr(auth_module.httpx, "AsyncClient", lambda **_kwargs: Client())
+
+    assert await verify_supabase_identity("invalid") is None

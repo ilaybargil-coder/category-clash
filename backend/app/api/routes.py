@@ -1,9 +1,18 @@
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..auth import TokenUser, create_access_token, get_current_user, verify_password
+from ..auth import (
+    SupabaseIdentity,
+    TokenUser,
+    create_access_token,
+    get_current_user,
+    get_supabase_identity,
+    verify_password,
+)
+from ..config import settings
 from ..db import get_session
 from ..game.manager import room_manager
 from ..models import User
@@ -35,6 +44,22 @@ class DemoSession(BaseModel):
     user: UserOut
 
 
+class ProfileRequest(BaseModel):
+    username: str = Field(min_length=3, max_length=24, pattern=r"^[A-Za-z0-9_]+$")
+    display_name: str = Field(min_length=2, max_length=64)
+
+
+def user_out(user: User) -> UserOut:
+    return UserOut(
+        id=user.id,
+        username=user.username,
+        display_name=user.display_name,
+        coins=user.coins,
+        wins=user.wins,
+        losses=user.losses,
+    )
+
+
 @router.get("/health")
 async def health():
     return {"status": "ok"}
@@ -49,6 +74,8 @@ async def demo_users(session: AsyncSession = Depends(get_session)):
     privilege. It does make selecting a player instant instead of running an
     expensive bcrypt check on a Render Free CPU for every click.
     """
+    if settings.auth_mode != "demo":
+        raise HTTPException(status_code=404, detail="Demo accounts are disabled")
     users = (await session.execute(select(User).order_by(User.id).limit(2))).scalars().all()
     return [
         DemoSession(
@@ -68,10 +95,16 @@ async def demo_users(session: AsyncSession = Depends(get_session)):
 
 @router.post("/auth/demo-login", response_model=LoginResponse)
 async def demo_login(body: LoginRequest, session: AsyncSession = Depends(get_session)):
+    if settings.auth_mode != "demo":
+        raise HTTPException(status_code=404, detail="Demo accounts are disabled")
     user = (
         await session.execute(select(User).where(User.username == body.username))
     ).scalar_one_or_none()
-    if user is None or not verify_password(body.password, user.password_hash):
+    if (
+        user is None
+        or user.password_hash is None
+        or not verify_password(body.password, user.password_hash)
+    ):
         raise HTTPException(status_code=401, detail="Bad username or password")
     return LoginResponse(
         token=create_access_token(user.id, user.username, user.display_name),
@@ -84,6 +117,62 @@ async def demo_login(body: LoginRequest, session: AsyncSession = Depends(get_ses
             losses=user.losses,
         ),
     )
+
+
+@router.post("/profile", response_model=UserOut)
+async def create_profile(
+    body: ProfileRequest,
+    identity: SupabaseIdentity = Depends(get_supabase_identity),
+    session: AsyncSession = Depends(get_session),
+):
+    existing = (
+        await session.execute(select(User).where(User.auth_user_id == identity.auth_user_id))
+    ).scalar_one_or_none()
+    if existing is not None:
+        return user_out(existing)
+
+    display_name = body.display_name.strip()
+    if len(display_name) < 2:
+        raise HTTPException(status_code=422, detail="Display name is too short")
+    profile = User(
+        auth_user_id=identity.auth_user_id,
+        username=body.username.lower(),
+        display_name=display_name,
+        password_hash=None,
+        coins=100,
+    )
+    session.add(profile)
+    try:
+        await session.commit()
+    except IntegrityError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=409, detail="Username is already taken") from exc
+    await session.refresh(profile)
+    return user_out(profile)
+
+
+@router.get("/profile", response_model=UserOut)
+async def supabase_profile(
+    identity: SupabaseIdentity = Depends(get_supabase_identity),
+    session: AsyncSession = Depends(get_session),
+):
+    profile = (
+        await session.execute(select(User).where(User.auth_user_id == identity.auth_user_id))
+    ).scalar_one_or_none()
+    if profile is None:
+        raise HTTPException(status_code=404, detail="Profile required")
+    return user_out(profile)
+
+
+@router.get("/me", response_model=UserOut)
+async def current_profile(
+    current: TokenUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    user = await session.get(User, current.id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    return user_out(user)
 
 
 @router.post("/rooms")

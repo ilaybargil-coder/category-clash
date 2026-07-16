@@ -2,8 +2,9 @@ import logging
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 
-from .auth import decode_token
+from .auth import authenticate_token
 from .config import settings
+from .db import SessionLocal
 from .game.manager import room_manager
 from .game.validator import AnswerStatus
 from .protocol import PingCommand, SubmitAnswerCommand, make_server_event, parse_client_command
@@ -41,7 +42,8 @@ async def room_websocket(ws: WebSocket, code: str, token: str = Query(...)):
         await ws.close(code=WS_ORIGIN_FORBIDDEN)
         return
 
-    user = decode_token(token)
+    async with SessionLocal() as session:
+        user = await authenticate_token(token, session)
     if user is None:
         await ws.close(code=WS_UNAUTHORIZED)
         return

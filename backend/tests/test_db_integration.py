@@ -151,3 +151,30 @@ async def test_application_tables_have_row_level_security_enabled() -> None:
             },
         )
     assert protected_tables == 7
+
+
+@pytest.mark.integration
+@pytest.mark.skipif(
+    os.getenv("RUN_DB_INTEGRATION") != "1",
+    reason="set RUN_DB_INTEGRATION=1 with PostgreSQL running",
+)
+async def test_supabase_profile_columns_are_ready() -> None:
+    async with SessionLocal() as session:
+        columns = {
+            row.column_name: row.is_nullable
+            for row in (
+                await session.execute(
+                    text(
+                        """
+                        SELECT column_name, is_nullable
+                        FROM information_schema.columns
+                        WHERE table_schema = 'public'
+                          AND table_name = 'users'
+                          AND column_name IN ('auth_user_id', 'password_hash')
+                        """
+                    )
+                )
+            )
+        }
+
+    assert columns == {"auth_user_id": "YES", "password_hash": "YES"}

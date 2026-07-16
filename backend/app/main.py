@@ -41,12 +41,20 @@ async def database_is_ready() -> bool:
         return False
 
 
+def auth_is_ready() -> bool:
+    if settings.auth_mode == "demo":
+        return True
+    return bool(settings.supabase_url and settings.supabase_publishable_key)
+
+
 @app.get("/ready", include_in_schema=False)
 async def ready() -> dict[str, str]:
-    """Readiness probe: the process is useful only when PostgreSQL responds."""
+    """Readiness probe: PostgreSQL and the selected auth mode are configured."""
 
     if not await database_is_ready():
         raise HTTPException(status_code=503, detail="Database is not ready")
+    if not auth_is_ready():
+        raise HTTPException(status_code=503, detail="Authentication is not configured")
     return {"status": "ready"}
 
 

@@ -7,6 +7,15 @@ export const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:8000";
 const TOKEN_KEY = "cc_token";
 const USER_KEY = "cc_user";
 
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number
+  ) {
+    super(message);
+  }
+}
+
 export function saveSession(token: string, user: SessionUser) {
   sessionStorage.setItem(TOKEN_KEY, token);
   sessionStorage.setItem(USER_KEY, JSON.stringify(user));
@@ -23,6 +32,11 @@ export function getUser(): SessionUser | null {
   return raw ? (JSON.parse(raw) as SessionUser) : null;
 }
 
+export function clearSession() {
+  sessionStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(USER_KEY);
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = typeof window !== "undefined" ? getToken() : null;
   const res = await fetch(`${API_URL}${path}`, {
@@ -35,7 +49,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.detail ?? `HTTP ${res.status}`);
+    throw new ApiError(body.detail ?? `HTTP ${res.status}`, res.status);
   }
   return res.json() as Promise<T>;
 }
@@ -48,6 +62,20 @@ export function demoLogin(username: string, password: string) {
   return request<{ token: string; user: SessionUser }>("/api/auth/demo-login", {
     method: "POST",
     body: JSON.stringify({ username, password }),
+  });
+}
+
+export function fetchProfile(token: string) {
+  return request<SessionUser>("/api/profile", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function createProfile(token: string, username: string, displayName: string) {
+  return request<SessionUser>("/api/profile", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ username, display_name: displayName }),
   });
 }
 

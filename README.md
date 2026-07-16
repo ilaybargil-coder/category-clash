@@ -2,7 +2,7 @@
 
 משחק טריוויה תחרותי לשני שחקנים בזמן אמת: מקבלים שאלת קטגוריה ("כתבו שמות של פירות טרופיים"), עונים בתורות, ומי שנתקע כשהטיימר מתאפס — מפסיד את הסיבוב. Best of 3.
 
-**סטטוס:** ‏Phase 1 הושלם; Milestone B מוכן לפריסת בטא חינמית ב-Cloudflare Workers + Render Free + Supabase Free.
+**סטטוס:** ‏Phase 1 הושלם; Milestone B כולל בטא חינמית ו-Supabase Auth על Cloudflare Workers + Render Free + Supabase Free.
 
 ## סטאק
 
@@ -131,7 +131,7 @@ backend/.venv/bin/python backend/scripts/generate_protocol_types.py
 קובצי הפריסה מוכנים ב-`render.yaml`, ‏`frontend/wrangler.jsonc` ו-`frontend/open-next.config.ts`. אין secrets ב-Git; את כתובות השירותים והסודות מגדירים ב-Dashboards. לפרטים: [docs/FREE_DEPLOYMENT.md](docs/FREE_DEPLOYMENT.md).
 
 - Backend liveness: `/health`
-- Backend readiness מול PostgreSQL: `/ready`
+- Backend readiness מול PostgreSQL והגדרות authentication: `/ready`
 - Render משתמש ב-`0.0.0.0:$PORT` וב-Uvicorn worker יחיד.
 - ה-frontend משתמש ב-HTTPS/WSS בפרודקשן ומציג מסך המתנה בזמן cold start.
 - גרסת הבטא החינמית מאבדת משחק פעיל אם תהליך Render מופעל מחדש.
@@ -139,7 +139,8 @@ backend/.venv/bin/python backend/scripts/generate_protocol_types.py
 ## מפת דרכים
 
 - **Phase 1 — ליבת המשחק** ✅ (הושלם)
-- **Phase 2 — הרשמה, חברים, presence, הזמנות עם טיימר 90 שניות**
+- **Phase 2A — הרשמה והתחברות עם session מתמשך** ✅
+- **Phase 2B — חברים, presence והזמנות עם טיימר 90 שניות**
 - **Phase 3 — מנוע שאלות: fuzzy matching, החלפת שאלה במטבעות, לוג תשובות שנדחו**
 - **Phase 4 — ממשק Admin**
 - **Phase 5 — ליטוש: אנימציות, reconnect משופר, אבטחה, ביצועים**

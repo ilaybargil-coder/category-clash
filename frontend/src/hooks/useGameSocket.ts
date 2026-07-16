@@ -41,8 +41,7 @@ export function useGameSocket(code: string) {
   const pendingAnswerRef = useRef<PendingAnswerCommand | null>(null);
 
   useEffect(() => {
-    const token = getToken();
-    if (!token) return;
+    if (!getToken()) return;
 
     // Lifecycle state is LOCAL to this effect run. Under React Strict Mode
     // the effect runs twice; each run owns exactly one connection chain and
@@ -64,6 +63,11 @@ export function useGameSocket(code: string) {
 
     const connect = () => {
       if (disposed) return;
+      const token = getToken();
+      if (!token) {
+        setStatus("unauthorized");
+        return;
+      }
       setStatus("connecting");
       const ws = new WebSocket(
         `${WS_URL}/ws/rooms/${encodeURIComponent(code)}?token=${encodeURIComponent(token)}`

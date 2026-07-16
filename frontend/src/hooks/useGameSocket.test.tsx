@@ -107,6 +107,18 @@ describe("useGameSocket lifecycle", () => {
     expect(FakeWebSocket.instances).toHaveLength(2);
   });
 
+  it("uses a refreshed access token when reconnecting", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    renderHook(() => useGameSocket("ROOM1"));
+    const socket = FakeWebSocket.instances[0];
+
+    sessionStorage.setItem("cc_token", "refreshed-token");
+    act(() => socket.serverClose(1006));
+    act(() => vi.advanceTimersByTime(500));
+
+    expect(FakeWebSocket.instances[1].url).toContain("token=refreshed-token");
+  });
+
   it("a repeated submit while pending reuses the same command id", () => {
     const { result } = renderHook(() => useGameSocket("ROOM1"));
     const socket = FakeWebSocket.instances[0];

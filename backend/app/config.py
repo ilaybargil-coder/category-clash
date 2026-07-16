@@ -5,6 +5,7 @@ variables (see .env.example at the repo root).
 """
 
 from pathlib import Path
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -27,9 +28,14 @@ class Settings(BaseSettings):
     readiness_timeout_seconds: float = 3.0
 
     # Auth
+    auth_mode: Literal["demo", "supabase"] = "demo"
     jwt_secret: str = "dev-secret-change-me-at-least-32-bytes"
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 12 * 60
+    supabase_url: str = ""
+    supabase_publishable_key: str = ""
+    supabase_auth_timeout_seconds: float = 5.0
+    auth_identity_cache_seconds: int = 300
 
     # Gameplay
     turn_seconds: float = 15.0
