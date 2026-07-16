@@ -77,3 +77,8 @@ export interface SessionUser {
   wins: number;
   losses: number;
 }
+
+export interface DemoSession {
+  token: string;
+  user: SessionUser;
+}

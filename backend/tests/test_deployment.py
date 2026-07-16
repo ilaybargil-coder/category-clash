@@ -1,9 +1,12 @@
+from types import SimpleNamespace
+
 import pytest
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
 import app.main as main_module
-from app.auth import create_access_token
+from app.api.routes import demo_users
+from app.auth import create_access_token, decode_token
 from app.config import Settings, settings
 from app.main import app
 
@@ -99,3 +102,42 @@ def test_websocket_allows_configured_origin_and_continues_auth_flow(monkeypatch)
         with pytest.raises(WebSocketDisconnect) as exc_info:
             websocket.receive_json()
     assert exc_info.value.code == 4404
+
+
+async def test_demo_picker_preloads_signed_sessions_for_instant_selection():
+    users = [
+        SimpleNamespace(
+            id=1,
+            username="dana",
+            display_name="דנה",
+            coins=0,
+            wins=0,
+            losses=0,
+        ),
+        SimpleNamespace(
+            id=2,
+            username="omer",
+            display_name="עומר",
+            coins=0,
+            wins=0,
+            losses=0,
+        ),
+    ]
+
+    class Result:
+        def scalars(self):
+            return self
+
+        def all(self):
+            return users
+
+    class Session:
+        async def execute(self, _statement):
+            return Result()
+
+    sessions = await demo_users(Session())
+
+    assert [item.user.username for item in sessions] == ["dana", "omer"]
+    decoded = [decode_token(item.token) for item in sessions]
+    assert all(item is not None for item in decoded)
+    assert [item.username for item in decoded if item is not None] == ["dana", "omer"]

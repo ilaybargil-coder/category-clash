@@ -1,4 +1,4 @@
-import type { SessionUser } from "./types";
+import type { DemoSession, SessionUser } from "./types";
 
 export const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -41,7 +41,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 }
 
 export function fetchDemoUsers() {
-  return request<{ username: string; display_name: string }[]>("/api/users/demo");
+  return request<DemoSession[]>("/api/users/demo");
 }
 
 export function demoLogin(username: string, password: string) {

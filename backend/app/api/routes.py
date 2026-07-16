@@ -30,16 +30,40 @@ class LoginResponse(BaseModel):
     user: UserOut
 
 
+class DemoSession(BaseModel):
+    token: str
+    user: UserOut
+
+
 @router.get("/health")
 async def health():
     return {"status": "ok"}
 
 
-@router.get("/users/demo")
+@router.get("/users/demo", response_model=list[DemoSession])
 async def demo_users(session: AsyncSession = Depends(get_session)):
-    """Demo-user picker for the Phase 1 lobby (replaced by real auth in Phase 2)."""
+    """Preload signed sessions for the public Phase 1 demo accounts.
+
+    The demo password is already shipped in the browser bundle, so making the
+    equivalent short-lived sessions available with the picker grants no new
+    privilege. It does make selecting a player instant instead of running an
+    expensive bcrypt check on a Render Free CPU for every click.
+    """
     users = (await session.execute(select(User).order_by(User.id).limit(2))).scalars().all()
-    return [{"username": u.username, "display_name": u.display_name} for u in users]
+    return [
+        DemoSession(
+            token=create_access_token(user.id, user.username, user.display_name),
+            user=UserOut(
+                id=user.id,
+                username=user.username,
+                display_name=user.display_name,
+                coins=user.coins,
+                wins=user.wins,
+                losses=user.losses,
+            ),
+        )
+        for user in users
+    ]
 
 
 @router.post("/auth/demo-login", response_model=LoginResponse)

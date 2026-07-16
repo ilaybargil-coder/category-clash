@@ -4,21 +4,15 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   createRoom,
-  demoLogin,
   fetchDemoUsers,
   getUser,
   saveSession,
 } from "@/lib/api";
-import type { SessionUser } from "@/lib/types";
-
-// Phase 1: demo users share a fixed password (seeded server-side).
-const DEMO_PASSWORD = "demo1234";
+import type { DemoSession, SessionUser } from "@/lib/types";
 
 export default function LobbyPage() {
   const router = useRouter();
-  const [demoUsers, setDemoUsers] = useState<
-    { username: string; display_name: string }[]
-  >([]);
+  const [demoUsers, setDemoUsers] = useState<DemoSession[]>([]);
   const [user, setUser] = useState<SessionUser | null>(() => getUser());
   const [joinCode, setJoinCode] = useState("");
   const [busy, setBusy] = useState(false);
@@ -30,18 +24,10 @@ export default function LobbyPage() {
       .catch(() => setError("השרת זמין, אבל הנתונים עדיין לא מוכנים. נסו לרענן."));
   }, []);
 
-  async function loginAs(username: string) {
-    setBusy(true);
+  function loginAs(demo: DemoSession) {
     setError(null);
-    try {
-      const { token, user } = await demoLogin(username, DEMO_PASSWORD);
-      saveSession(token, user);
-      setUser(user);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "ההתחברות נכשלה");
-    } finally {
-      setBusy(false);
-    }
+    saveSession(demo.token, demo.user);
+    setUser(demo.user);
   }
 
   async function onCreateRoom() {
@@ -86,17 +72,17 @@ export default function LobbyPage() {
         <div className="grid grid-cols-2 gap-3">
           {demoUsers.map((demo) => (
             <button
-              key={demo.username}
-              onClick={() => loginAs(demo.username)}
+              key={demo.user.username}
+              onClick={() => loginAs(demo)}
               disabled={busy}
               className={`rounded-xl border-2 p-4 text-center transition ${
-                user?.username === demo.username
+                user?.username === demo.user.username
                   ? "border-violet-500 bg-violet-50"
                   : "border-slate-200 hover:border-violet-300"
               }`}
             >
-              <div className="text-2xl font-black">{demo.display_name}</div>
-              <div className="text-xs text-slate-400">@{demo.username}</div>
+              <div className="text-2xl font-black">{demo.user.display_name}</div>
+              <div className="text-xs text-slate-400">@{demo.user.username}</div>
             </button>
           ))}
         </div>
