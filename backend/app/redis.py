@@ -8,7 +8,13 @@ from collections.abc import AsyncIterator, Callable
 from typing import Any
 
 import redis.asyncio as redis
-from redis.exceptions import ConnectionError, RedisError, TimeoutError as RedisTimeoutError
+from redis.exceptions import (
+    ConnectionError,
+    RedisError,
+)
+from redis.exceptions import (
+    TimeoutError as RedisTimeoutError,
+)
 
 from .config import settings
 

@@ -75,7 +75,10 @@ async def test_scan_iter_matches_pattern_and_purges_expired_keys() -> None:
 async def test_get_redis_falls_back_when_ping_fails(monkeypatch) -> None:
     failed_client = AsyncMock()
     failed_client.ping.side_effect = ConnectionError("unavailable")
-    from_url = lambda *args, **kwargs: failed_client
+
+    def from_url(*args, **kwargs):
+        return failed_client
+
     monkeypatch.setattr(redis_module.redis, "from_url", from_url)
 
     client = await get_redis()
@@ -88,7 +91,10 @@ async def test_get_redis_falls_back_when_ping_fails(monkeypatch) -> None:
 async def test_get_redis_returns_real_client_when_ping_succeeds(monkeypatch) -> None:
     real_client = AsyncMock()
     real_client.ping.return_value = True
-    from_url = lambda *args, **kwargs: real_client
+
+    def from_url(*args, **kwargs):
+        return real_client
+
     monkeypatch.setattr(redis_module.redis, "from_url", from_url)
 
     client = await get_redis()
