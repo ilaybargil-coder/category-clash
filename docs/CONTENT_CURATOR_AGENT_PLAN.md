@@ -106,7 +106,9 @@ LLM is enabled, it may only prepare a draft pull request.
 
 1. Add a deterministic static audit command for counts, collisions, risky short
    aliases, singleton semantic groups, and source coverage.
-2. Add rejected-answer aggregation and a review-decision table/API.
+2. ✅ Add a privacy-safe rejected-answer aggregation command:
+   `python -m scripts.report_rejected_answers --min-count 2 --limit 100`.
+   A review-decision table/API remains for the admin milestone.
 3. Add the admin review queue.
 4. Generate data changes from approved candidates and require CI.
 5. Optionally schedule the static audit and draft-report generation.
