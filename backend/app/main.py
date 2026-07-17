@@ -12,7 +12,9 @@ from .ws import router as ws_router
 
 logging.basicConfig(level=logging.INFO)
 
-app = FastAPI(title="Category Clash API", version="0.1.0")
+API_VERSION = "0.2.0"
+
+app = FastAPI(title="Category Clash API", version=API_VERSION)
 
 app.add_middleware(
     CORSMiddleware,
@@ -27,7 +29,7 @@ app.add_middleware(
 async def health() -> dict[str, str]:
     """Cheap liveness probe used to wake a sleeping Render Free service."""
 
-    return {"status": "ok"}
+    return {"status": "ok", "version": API_VERSION}
 
 
 async def database_is_ready() -> bool:

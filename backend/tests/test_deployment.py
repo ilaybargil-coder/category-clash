@@ -40,7 +40,7 @@ def test_supabase_sslmode_is_translated_for_asyncpg():
 def test_health_is_a_database_independent_liveness_probe():
     response = TestClient(app).get("/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    assert response.json() == {"status": "ok", "version": "0.2.0"}
 
 
 def test_ready_returns_503_when_database_is_unavailable(monkeypatch):
