@@ -80,12 +80,14 @@ collect candidates
 
 ## Scheduling options
 
-### Free, recommended for the beta
+### Free, active for the beta
 
 - The game already records every submission in `submitted_answers`.
 - An admin report or local command ranks rejected answers by frequency.
-- Once a week, Codex and Claude can audit separate batches in separate
-  worktrees and create review-only pull requests.
+- A Codex project automation audits the bank twice a week in a separate
+  worktree and prepares review-only changes.
+- GitHub Actions runs the deterministic collision/source audit every Monday
+  and Thursday, and can also be started manually.
 - No paid model API or always-on worker is required.
 
 ### Automated later
@@ -111,4 +113,7 @@ LLM is enabled, it may only prepare a draft pull request.
    A review-decision table/API remains for the admin milestone.
 3. Add the admin review queue.
 4. Generate data changes from approved candidates and require CI.
-5. Optionally schedule the static audit and draft-report generation.
+5. ✅ Schedule the static audit and draft-report generation.
+
+The operational checklist and the exact process for adding a brand-new question
+are documented in `docs/ADDING_A_QUESTION.md`.

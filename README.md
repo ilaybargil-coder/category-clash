@@ -72,6 +72,9 @@ npm run dev
 
 ## בדיקות
 
+המדריך המחייב להוספת שאלה, aliases, תיקוני כתיב, מקורות, טסטים ופריסה נמצא
+ב־[`docs/ADDING_A_QUESTION.md`](docs/ADDING_A_QUESTION.md).
+
 בדיקות היחידה מכסות את מנוע המשחק (תורות, טיימרים, Best of 3, ניתוקים, מרוצי־זמן), idempotency של פקודות, פרוטוקול WebSocket ואת ולידציית התשובות (נרמול עברית, aliases, כפילויות, semantic groups):
 
 ```bash

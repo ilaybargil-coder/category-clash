@@ -12,6 +12,7 @@ from .auth import hash_password
 from .db import SessionLocal
 from .models import AnswerAlias, ApprovedAnswer, Question, User
 from .question_bank import ADDITIONAL_QUESTIONS
+from .question_bank_continuous import CURATED_ALIAS_ADDITIONS, CURATED_ANSWER_ADDITIONS
 from .question_bank_corrections_claude import QUESTION_CORRECTIONS, apply_corrections
 from .question_bank_enrichment import QUESTION_ENRICHMENTS
 from .question_bank_expansion_v2 import (
@@ -247,6 +248,26 @@ for question in QUESTIONS:
         if target is None:
             raise ValueError(
                 f"V3 alias expansion targets missing answer {canonical!r} "
+                f"in question {question['text']!r}"
+            )
+        for alias in aliases:
+            if alias != canonical and alias not in target:
+                target.append(alias)
+
+    existing_canonicals = {canonical for canonical, _aliases, _group in question["answers"]}
+    for canonical, aliases, group in CURATED_ANSWER_ADDITIONS.get(question["text"], []):
+        if canonical not in existing_canonicals:
+            question["answers"].append((canonical, list(aliases), group))
+            existing_canonicals.add(canonical)
+
+    answers_by_canonical = {
+        canonical: aliases for canonical, aliases, _group in question["answers"]
+    }
+    for canonical, aliases in CURATED_ALIAS_ADDITIONS.get(question["text"], {}).items():
+        target = answers_by_canonical.get(canonical)
+        if target is None:
+            raise ValueError(
+                f"Continuous alias expansion targets missing answer {canonical!r} "
                 f"in question {question['text']!r}"
             )
         for alias in aliases:
