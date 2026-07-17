@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import AuthScreen from "@/components/AuthScreen";
+import FriendsPanel from "@/components/FriendsPanel";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { createRoom, fetchDemoUsers, getUser, saveSession } from "@/lib/api";
 import {
@@ -67,6 +68,14 @@ function GameActions({ user }: { user: SessionUser | null }) {
           className="w-full rounded-xl bg-gradient-to-l from-violet-600 to-fuchsia-500 py-3.5 text-lg font-bold text-white shadow-md transition active:scale-[0.98] disabled:opacity-50"
         >
           משחק חדש
+        </button>
+        <button
+          type="button"
+          onClick={() => router.push("/solo")}
+          disabled={!user}
+          className="mt-3 w-full rounded-xl border-2 border-violet-200 bg-violet-50 py-3 font-bold text-violet-700 transition active:scale-[0.98] disabled:opacity-50"
+        >
+          משחק יחיד 🎯
         </button>
         <div className="my-4 flex items-center gap-3 text-xs text-slate-300">
           <div className="h-px flex-1 bg-slate-200" />
@@ -150,6 +159,7 @@ function AuthenticatedLobby() {
         </p>
       </section>
       <GameActions user={auth.user} />
+      <FriendsPanel />
     </main>
   );
 }
@@ -204,6 +214,7 @@ function DemoLobby() {
         )}
       </section>
       <GameActions user={user} />
+      {user && <FriendsPanel key={user.id} />}
       <p className="text-center text-xs text-slate-400">
         טיפ: פתחו שני חלונות דפדפן ובחרו שחקן שונה בכל אחד
       </p>
