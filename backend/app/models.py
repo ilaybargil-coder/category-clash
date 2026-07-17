@@ -2,6 +2,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Integer,
@@ -29,6 +30,33 @@ class User(Base):
     coins: Mapped[int] = mapped_column(Integer, default=0)
     wins: Mapped[int] = mapped_column(Integer, default=0)
     losses: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class FriendRequest(Base):
+    __tablename__ = "friend_requests"
+    __table_args__ = (
+        CheckConstraint("sender_id != recipient_id", name="ck_friend_requests_distinct_users"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    sender_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    recipient_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    status: Mapped[str] = mapped_column(String(20), default="PENDING", server_default="PENDING")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    responded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class Friendship(Base):
+    __tablename__ = "friendships"
+    __table_args__ = (
+        CheckConstraint("user_a_id < user_b_id", name="ck_friendships_normalized_pair"),
+        UniqueConstraint("user_a_id", "user_b_id", name="uq_friendships_user_pair"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_a_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    user_b_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

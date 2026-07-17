@@ -48,6 +48,8 @@ class Settings(BaseSettings):
 
     # Phase 2+
     invite_ttl_seconds: int = 90
+    redis_url: str = "redis://localhost:6379/0"
+    presence_ttl_seconds: int = 60
     swap_question_cost_coins: int = 50
     fuzzy_matching_enabled: bool = False
     fuzzy_max_distance: int = 1

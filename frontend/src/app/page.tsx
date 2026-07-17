@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import AuthScreen from "@/components/AuthScreen";
+import FriendsPanel from "@/components/FriendsPanel";
 import {
   BrandMark,
   CoinPill,
@@ -59,14 +60,24 @@ function GameActions({ user }: { user: SessionUser | null }) {
         <p className="relative mt-2 max-w-lg text-sm leading-6 text-slate-400 sm:text-base">
           פתחו חדר, שלחו לחבר את הקוד ונסו להיות האחרונים שנשארים עם תשובה.
         </p>
-        <button
-          type="button"
-          onClick={onCreateRoom}
-          disabled={busy || !user}
-          className="primary-button relative mt-6 w-full px-6 py-3.5 sm:w-auto sm:min-w-56"
-        >
-          {busy ? "פותחים זירה..." : "＋ צור משחק חדש"}
-        </button>
+        <div className="relative mt-6 flex flex-col gap-3 sm:flex-row">
+          <button
+            type="button"
+            onClick={onCreateRoom}
+            disabled={busy || !user}
+            className="primary-button w-full px-6 py-3.5 sm:w-auto sm:min-w-56"
+          >
+            {busy ? "פותחים זירה..." : "＋ צור משחק חדש"}
+          </button>
+          <button
+            type="button"
+            onClick={() => router.push("/solo")}
+            disabled={!user}
+            className="secondary-button w-full px-6 py-3.5 sm:w-auto"
+          >
+            משחק יחיד 🎯
+          </button>
+        </div>
       </div>
 
       <div className="p-5 sm:p-7">
@@ -181,6 +192,7 @@ function LobbyDashboard({
           <div className="space-y-4">
             <GameActions user={user} />
             <StatsStrip user={user} />
+            <FriendsPanel key={user.id} />
             <section className="surface-panel rounded-2xl p-5 sm:p-6">
               <div className="flex items-center justify-between gap-4">
                 <div>

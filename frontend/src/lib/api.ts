@@ -16,6 +16,91 @@ export class ApiError extends Error {
   }
 }
 
+export type FriendRelation =
+  | "none"
+  | "friends"
+  | "outgoing_pending"
+  | "incoming_pending";
+
+export interface FriendUser {
+  id: number;
+  username: string;
+  display_name: string;
+}
+
+export interface UserSearchResult extends FriendUser {
+  wins: number;
+  losses: number;
+  relation: FriendRelation;
+}
+
+export interface FriendRequestItem {
+  id: number;
+  user: FriendUser;
+  created_at: string;
+}
+
+export interface FriendRequests {
+  incoming: FriendRequestItem[];
+  outgoing: FriendRequestItem[];
+}
+
+export interface Friend extends FriendUser {
+  wins: number;
+  losses: number;
+  friends_since: string;
+}
+
+export interface GameInvite {
+  sender: FriendUser;
+  room_code: string;
+  expires_in_seconds: number;
+}
+
+export type SoloAnswerStatus =
+  | "VALID"
+  | "INVALID"
+  | "DUPLICATE"
+  | "TOO_SIMILAR"
+  | "NOT_YOUR_TURN"
+  | "ROUND_FINISHED"
+  | "TIME_EXPIRED";
+
+export interface SoloQuestion {
+  solo_id: string;
+  question_id: number;
+  question_text: string;
+  total_answers: number;
+}
+
+export interface SoloAnswerResult {
+  status: SoloAnswerStatus;
+  canonical: string | null;
+  found_count: number;
+  total_answers: number;
+}
+
+export interface SoloRevealedAnswer {
+  canonical: string;
+  semantic_group: string | null;
+  found: boolean;
+}
+
+export interface SoloReveal {
+  answers: SoloRevealedAnswer[];
+  found_count: number;
+  total_answers: number;
+}
+
+export type FriendRequestResult =
+  | { status: "PENDING"; request_id: number }
+  | {
+      status: "FRIENDS";
+      friendship_id: number;
+      friend: FriendUser;
+      friends_since: string;
+    };
+
 export function saveSession(token: string, user: SessionUser) {
   sessionStorage.setItem(TOKEN_KEY, token);
   sessionStorage.setItem(USER_KEY, JSON.stringify(user));
@@ -83,8 +168,101 @@ export function createRoom() {
   return request<{ code: string }>("/api/rooms", { method: "POST" });
 }
 
+export function startSolo() {
+  return request<SoloQuestion>("/api/solo/start", { method: "POST" });
+}
+
+export function submitSoloAnswer(soloId: string, text: string) {
+  return request<SoloAnswerResult>(`/api/solo/${soloId}/answer`, {
+    method: "POST",
+    body: JSON.stringify({ text }),
+  });
+}
+
+export function revealSolo(soloId: string) {
+  return request<SoloReveal>(`/api/solo/${soloId}/reveal`, { method: "POST" });
+}
+
+export function nextSoloQuestion(soloId: string) {
+  return request<SoloQuestion>(`/api/solo/${soloId}/next`, { method: "POST" });
+}
+
+export function endSolo(soloId: string) {
+  return request<{ ended: boolean }>(`/api/solo/${soloId}`, { method: "DELETE" });
+}
+
 export function fetchRoom(code: string) {
   return request<{ code: string; phase: string; players: string[]; joinable: boolean }>(
     `/api/rooms/${code}`
   );
+}
+
+export function searchUsers(query: string) {
+  return request<UserSearchResult[]>(
+    `/api/users/search?q=${encodeURIComponent(query)}`
+  );
+}
+
+export function sendFriendRequest(username: string) {
+  return request<FriendRequestResult>("/api/friends/requests", {
+    method: "POST",
+    body: JSON.stringify({ username }),
+  });
+}
+
+export function fetchFriendRequests() {
+  return request<FriendRequests>("/api/friends/requests");
+}
+
+export function acceptFriendRequest(requestId: number) {
+  return request<Extract<FriendRequestResult, { status: "FRIENDS" }>>(
+    `/api/friends/requests/${requestId}/accept`,
+    { method: "POST" }
+  );
+}
+
+export function declineFriendRequest(requestId: number) {
+  return request<{ id: number; status: "DECLINED"; responded_at: string }>(
+    `/api/friends/requests/${requestId}/decline`,
+    { method: "POST" }
+  );
+}
+
+export function fetchFriends() {
+  return request<Friend[]>("/api/friends");
+}
+
+export function sendPresenceHeartbeat() {
+  return request<{ online_friend_ids: number[] }>("/api/presence/heartbeat", {
+    method: "POST",
+  });
+}
+
+export function sendGameInvite(username: string) {
+  return request<{ room_code: string; expires_in_seconds: number }>("/api/invites", {
+    method: "POST",
+    body: JSON.stringify({ username }),
+  });
+}
+
+export function fetchInvites() {
+  return request<GameInvite[]>("/api/invites");
+}
+
+export function acceptInvite(senderId: number) {
+  return request<{ room_code: string }>(`/api/invites/${senderId}/accept`, {
+    method: "POST",
+  });
+}
+
+export function declineInvite(senderId: number) {
+  return request<{ declined: boolean }>(`/api/invites/${senderId}/decline`, {
+    method: "POST",
+  });
+}
+
+export function removeFriend(userId: number) {
+  return request<{ removed: boolean }>(`/api/friends/${userId}`, {
+    method: "DELETE",
+  });
 }
