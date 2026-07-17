@@ -12,6 +12,7 @@ from .auth import hash_password
 from .db import SessionLocal
 from .models import AnswerAlias, ApprovedAnswer, Question, User
 from .question_bank import ADDITIONAL_QUESTIONS
+from .question_bank_enrichment import QUESTION_ENRICHMENTS
 
 DEMO_PASSWORD = "demo1234"
 
@@ -185,6 +186,16 @@ QUESTIONS: list[dict] = [
 
 QUESTIONS.extend(ADDITIONAL_QUESTIONS)
 
+for question in QUESTIONS:
+    question["answers"].extend(QUESTION_ENRICHMENTS.get(question["text"], []))
+
+
+LEGACY_CANONICAL_RENAMES: dict[str, dict[str, str]] = {
+    "כתבו שמות של משחקי קופסה וקלפים": {
+        "סולמות וחבלים": "סולמות ונחשים",
+    },
+}
+
 
 async def seed() -> None:
     async with SessionLocal() as session:
@@ -227,6 +238,15 @@ async def seed() -> None:
             answers_by_canonical = {
                 answer.canonical: answer for answer in question.answers
             }
+            for old_canonical, new_canonical in LEGACY_CANONICAL_RENAMES.get(
+                q["text"], {}
+            ).items():
+                legacy_answer = answers_by_canonical.get(old_canonical)
+                if legacy_answer is not None and new_canonical not in answers_by_canonical:
+                    legacy_answer.canonical = new_canonical
+                    answers_by_canonical.pop(old_canonical)
+                    answers_by_canonical[new_canonical] = legacy_answer
+
             for canonical, aliases, group in q["answers"]:
                 answer = answers_by_canonical.get(canonical)
                 if answer is None:

@@ -4,7 +4,28 @@ from app.seed import QUESTIONS
 
 def test_question_bank_is_substantially_populated():
     assert len(QUESTIONS) >= 30
-    assert sum(len(question["answers"]) for question in QUESTIONS) >= 500
+    assert sum(len(question["answers"]) for question in QUESTIONS) >= 1_000
+    assert all(len(question["answers"]) >= 20 for question in QUESTIONS)
+
+
+def test_common_playtest_answers_are_accepted_forms():
+    by_question = {question["text"]: question for question in QUESTIONS}
+
+    def forms(question_text: str) -> set[str]:
+        return {
+            normalize_answer(form)
+            for canonical, aliases, _group in by_question[question_text]["answers"]
+            for form in (canonical, *aliases)
+        }
+
+    board_games = forms("כתבו שמות של משחקי קופסה וקלפים")
+    assert normalize_answer("סולמות ונחשים") in board_games
+    assert normalize_answer("אליאס") in board_games
+    assert normalize_answer("רמי") in board_games
+
+    green_vegetables = forms("כתבו שמות של ירקות ירוקים")
+    assert normalize_answer("פלפל") in green_vegetables
+    assert normalize_answer("פלפל ירוק") in green_vegetables
 
 
 def test_questions_and_canonical_answers_are_unique():

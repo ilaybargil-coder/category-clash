@@ -12,7 +12,7 @@ from .ws import router as ws_router
 
 logging.basicConfig(level=logging.INFO)
 
-API_VERSION = "0.2.0"
+API_VERSION = "0.3.0"
 
 app = FastAPI(title="Category Clash API", version=API_VERSION)
 
