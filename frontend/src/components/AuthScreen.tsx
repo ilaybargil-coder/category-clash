@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { BrandMark } from "@/components/VisualShell";
 import { createProfile } from "@/lib/api";
 import { getSupabaseClient } from "@/lib/supabase";
 import type { SessionUser } from "@/lib/types";
@@ -98,143 +99,206 @@ export default function AuthScreen({ profileToken, onProfileReady }: Props) {
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-6 px-4 py-8">
-      <header className="text-center">
-        <h1 className="bg-gradient-to-l from-violet-600 to-fuchsia-500 bg-clip-text text-5xl font-black text-transparent">
-          קרב קטגוריות
-        </h1>
-        <p className="mt-2 text-slate-500">
-          {completingProfile ? "עוד רגע מתחילים — בחרו זהות למשחק" : "מתחברים ומשחקים בזמן אמת"}
-        </p>
-      </header>
-
-      <section className="rounded-3xl bg-white p-6 shadow-sm">
-        {!completingProfile && (
-          <div className="mb-6 grid grid-cols-2 rounded-xl bg-slate-100 p-1">
-            <button
-              type="button"
-              onClick={() => setMode("login")}
-              className={`rounded-lg py-2 font-bold ${mode === "login" ? "bg-white text-violet-700 shadow-sm" : "text-slate-500"}`}
-            >
-              כניסה
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode("register")}
-              className={`rounded-lg py-2 font-bold ${mode === "register" ? "bg-white text-violet-700 shadow-sm" : "text-slate-500"}`}
-            >
-              הרשמה
-            </button>
+    <main className="app-background min-h-dvh p-3 sm:p-5">
+      <div className="mx-auto grid min-h-[calc(100dvh-1.5rem)] max-w-6xl overflow-hidden rounded-2xl border border-white/10 bg-[#071019]/85 shadow-2xl sm:min-h-[calc(100dvh-2.5rem)] lg:grid-cols-[1.05fr_0.95fr]">
+        <section className="relative hidden overflow-hidden border-l border-white/10 p-12 lg:flex lg:flex-col lg:justify-between">
+          <div className="pointer-events-none absolute -right-40 -top-40 h-96 w-96 rounded-full bg-violet-600/20 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-44 -left-24 h-96 w-96 rounded-full bg-emerald-500/10 blur-3xl" />
+          <BrandMark />
+          <div className="relative mx-auto max-w-md text-center">
+            <p className="text-xs font-bold tracking-[0.2em] text-violet-300">
+              שאלה אחת. שני שחקנים.
+            </p>
+            <h1 className="mt-4 text-5xl font-black leading-tight text-white">
+              חושבים מהר.
+              <br />
+              נשארים אחרונים.
+            </h1>
+            <p className="mt-5 leading-7 text-slate-400">
+              משחק קטגוריות תחרותי בזמן אמת, עם מאגר תשובות חכם שמתחשב
+              בכתיבים חלופיים ובשגיאות אנושיות.
+            </p>
           </div>
-        )}
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              ["31", "קטגוריות"],
+              ["3,700+", "תשובות"],
+              ["Live", "בזמן אמת"],
+            ].map(([value, label]) => (
+              <div key={label} className="rounded-xl border border-white/10 bg-white/[0.025] p-4 text-center">
+                <strong className="block text-xl font-black text-white">{value}</strong>
+                <span className="text-xs text-slate-500">{label}</span>
+              </div>
+            ))}
+          </div>
+        </section>
 
-        <form onSubmit={submit} className="space-y-4">
-          {!completingProfile && (
-            <label className="block">
-              <span className="mb-1 block text-sm font-bold text-slate-600">אימייל</span>
-              <input
-                type="email"
-                autoComplete="email"
-                autoCapitalize="none"
-                autoCorrect="off"
-                spellCheck={false}
-                required
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                className="w-full rounded-xl border-2 border-slate-200 px-4 py-3 outline-none focus:border-violet-400"
-              />
-            </label>
-          )}
-
-          {(mode === "register" || completingProfile) && (
-            <>
-              <label className="block">
-                <span className="mb-1 block text-sm font-bold text-slate-600">שם משתמש</span>
-                <input
-                  dir="ltr"
-                  autoComplete="username"
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  required
-                  minLength={3}
-                  maxLength={24}
-                  placeholder="ilay_123"
-                  value={username}
-                  onChange={(event) => setUsername(event.target.value)}
-                  onBlur={() => setUsername(normalizeUsername(username))}
-                  className="w-full rounded-xl border-2 border-slate-200 px-4 py-3 text-left outline-none focus:border-violet-400"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-sm font-bold text-slate-600">כינוי במשחק</span>
-                <input
-                  autoComplete="nickname"
-                  required
-                  minLength={2}
-                  maxLength={64}
-                  placeholder="איליי"
-                  value={displayName}
-                  onChange={(event) => setDisplayName(event.target.value)}
-                  className="w-full rounded-xl border-2 border-slate-200 px-4 py-3 outline-none focus:border-violet-400"
-                />
-              </label>
-            </>
-          )}
-
-          {!completingProfile && (
-            <>
-              <label className="block">
-                <span className="mb-1 block text-sm font-bold text-slate-600">סיסמה</span>
-                <input
-                  type="password"
-                  autoComplete={mode === "login" ? "current-password" : "new-password"}
-                  required
-                  minLength={8}
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  className="w-full rounded-xl border-2 border-slate-200 px-4 py-3 outline-none focus:border-violet-400"
-                />
-              </label>
-              {mode === "register" && (
-                <label className="block">
-                  <span className="mb-1 block text-sm font-bold text-slate-600">
-                    אימות סיסמה
-                  </span>
-                  <input
-                    type="password"
-                    autoComplete="new-password"
-                    required
-                    minLength={8}
-                    value={passwordConfirmation}
-                    onChange={(event) => setPasswordConfirmation(event.target.value)}
-                    className="w-full rounded-xl border-2 border-slate-200 px-4 py-3 outline-none focus:border-violet-400"
-                  />
-                </label>
-              )}
-            </>
-          )}
-
-          {error && <p className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
-          {message && (
-            <p className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700">{message}</p>
-          )}
-
-          <button
-            type="submit"
-            disabled={busy}
-            className="w-full rounded-xl bg-gradient-to-l from-violet-600 to-fuchsia-500 py-3.5 text-lg font-bold text-white shadow-md disabled:opacity-50"
-          >
-            {busy
-              ? "רגע..."
-              : completingProfile
-                ? "שמירת פרופיל"
+        <section className="flex min-h-full items-center justify-center px-4 py-8 sm:px-10 lg:px-14">
+          <div className="w-full max-w-md">
+            <div className="mb-8 lg:hidden">
+              <BrandMark />
+            </div>
+            <p className="text-xs font-bold text-violet-300">
+              {completingProfile ? "שלב אחרון" : "ברוכים הבאים"}
+            </p>
+            <h2 className="mt-2 text-3xl font-black text-white">
+              {completingProfile
+                ? "בוחרים זהות למשחק"
                 : mode === "login"
-                  ? "כניסה למשחק"
-                  : "יצירת חשבון"}
-          </button>
-        </form>
-      </section>
+                  ? "חוזרים לזירה"
+                  : "יוצרים שחקן חדש"}
+            </h2>
+            <p className="mt-2 text-sm text-slate-500">
+              {completingProfile
+                ? "בחרו שם משתמש וכינוי שיופיע מול היריבים."
+                : "חשבון אחד, וכל ההתקדמות נשמרת."}
+            </p>
+
+            {!completingProfile && (
+              <div className="mt-7 grid grid-cols-2 rounded-xl border border-white/10 bg-black/20 p-1">
+                <button
+                  type="button"
+                  onClick={() => setMode("login")}
+                  className={`rounded-lg py-2.5 font-bold transition ${
+                    mode === "login"
+                      ? "bg-violet-500/20 text-violet-200 shadow-sm"
+                      : "text-slate-500"
+                  }`}
+                >
+                  כניסה
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode("register")}
+                  className={`rounded-lg py-2.5 font-bold transition ${
+                    mode === "register"
+                      ? "bg-violet-500/20 text-violet-200 shadow-sm"
+                      : "text-slate-500"
+                  }`}
+                >
+                  הרשמה
+                </button>
+              </div>
+            )}
+
+            <form onSubmit={submit} className="mt-6 space-y-4">
+              {!completingProfile && (
+                <Field label="אימייל">
+                  <input
+                    type="email"
+                    autoComplete="email"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    required
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    placeholder="name@example.com"
+                    className="dark-input text-left"
+                    dir="ltr"
+                  />
+                </Field>
+              )}
+
+              {(mode === "register" || completingProfile) && (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="שם משתמש">
+                    <input
+                      dir="ltr"
+                      autoComplete="username"
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                      spellCheck={false}
+                      required
+                      minLength={3}
+                      maxLength={24}
+                      placeholder="ilay_123"
+                      value={username}
+                      onChange={(event) => setUsername(event.target.value)}
+                      onBlur={() => setUsername(normalizeUsername(username))}
+                      className="dark-input text-left"
+                    />
+                  </Field>
+                  <Field label="כינוי במשחק">
+                    <input
+                      autoComplete="nickname"
+                      required
+                      minLength={2}
+                      maxLength={64}
+                      placeholder="עילאי"
+                      value={displayName}
+                      onChange={(event) => setDisplayName(event.target.value)}
+                      className="dark-input"
+                    />
+                  </Field>
+                </div>
+              )}
+
+              {!completingProfile && (
+                <>
+                  <Field label="סיסמה">
+                    <input
+                      type="password"
+                      autoComplete={mode === "login" ? "current-password" : "new-password"}
+                      required
+                      minLength={8}
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      className="dark-input"
+                    />
+                  </Field>
+                  {mode === "register" && (
+                    <Field label="אימות סיסמה">
+                      <input
+                        type="password"
+                        autoComplete="new-password"
+                        required
+                        minLength={8}
+                        value={passwordConfirmation}
+                        onChange={(event) => setPasswordConfirmation(event.target.value)}
+                        className="dark-input"
+                      />
+                    </Field>
+                  )}
+                </>
+              )}
+
+              {error && (
+                <p className="rounded-xl border border-rose-400/20 bg-rose-500/10 p-3 text-sm text-rose-300">
+                  {error}
+                </p>
+              )}
+              {message && (
+                <p className="rounded-xl border border-emerald-400/20 bg-emerald-500/10 p-3 text-sm text-emerald-300">
+                  {message}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                disabled={busy}
+                className="primary-button w-full py-3.5 text-base"
+              >
+                {busy
+                  ? "רגע..."
+                  : completingProfile
+                    ? "שמירת פרופיל"
+                    : mode === "login"
+                      ? "כניסה למשחק"
+                      : "יצירת חשבון"}
+              </button>
+            </form>
+          </div>
+        </section>
+      </div>
     </main>
+  );
+}
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-xs font-bold text-slate-400">{label}</span>
+      {children}
+    </label>
   );
 }

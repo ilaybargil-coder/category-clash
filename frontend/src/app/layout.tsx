@@ -19,7 +19,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="he" dir="rtl">
-      <body className="min-h-dvh bg-slate-100 font-sans text-slate-900 antialiased">
+      <body className="min-h-dvh bg-[#050a10] font-sans text-slate-100 antialiased">
         <BackendWarmup />
         {children}
       </body>
