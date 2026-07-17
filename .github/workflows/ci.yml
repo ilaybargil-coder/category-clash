@@ -40,8 +40,9 @@ jobs:
       - run: pip install -r requirements.txt -r requirements-dev.txt
       - run: python -m alembic upgrade head
       - run: python -m app.seed
-      - run: ruff check app tests
-      - run: ruff format --check app tests
+      - run: python -m scripts.audit_question_bank
+      - run: ruff check app tests scripts
+      - run: ruff format --check app tests scripts
       - run: mypy app
       - run: RUN_DB_INTEGRATION=1 python -m pytest tests -q
 

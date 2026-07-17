@@ -13,6 +13,11 @@ from .db import SessionLocal
 from .models import AnswerAlias, ApprovedAnswer, Question, User
 from .question_bank import ADDITIONAL_QUESTIONS
 from .question_bank_enrichment import QUESTION_ENRICHMENTS
+from .question_bank_expansion_v2 import (
+    ANSWER_ALIAS_ADDITIONS_V2,
+    ANSWER_GROUP_UPDATES_V2,
+    QUESTION_EXPANSIONS_V2,
+)
 
 DEMO_PASSWORD = "demo1234"
 
@@ -188,6 +193,28 @@ QUESTIONS.extend(ADDITIONAL_QUESTIONS)
 
 for question in QUESTIONS:
     question["answers"].extend(QUESTION_ENRICHMENTS.get(question["text"], []))
+    question["answers"].extend(QUESTION_EXPANSIONS_V2.get(question["text"], []))
+
+    group_updates = ANSWER_GROUP_UPDATES_V2.get(question["text"], {})
+    if group_updates:
+        question["answers"] = [
+            (canonical, aliases, group_updates.get(canonical, group))
+            for canonical, aliases, group in question["answers"]
+        ]
+
+    answers_by_canonical = {
+        canonical: aliases for canonical, aliases, _group in question["answers"]
+    }
+    for canonical, aliases in ANSWER_ALIAS_ADDITIONS_V2.get(question["text"], {}).items():
+        target = answers_by_canonical.get(canonical)
+        if target is None:
+            raise ValueError(
+                f"Alias expansion targets missing answer {canonical!r} "
+                f"in question {question['text']!r}"
+            )
+        for alias in aliases:
+            if alias != canonical and alias not in target:
+                target.append(alias)
 
 
 LEGACY_CANONICAL_RENAMES: dict[str, dict[str, str]] = {
@@ -217,9 +244,7 @@ async def seed() -> None:
                 (
                     await session.execute(
                         select(Question).options(
-                            selectinload(Question.answers).selectinload(
-                                ApprovedAnswer.aliases
-                            )
+                            selectinload(Question.answers).selectinload(ApprovedAnswer.aliases)
                         )
                     )
                 )
@@ -235,12 +260,8 @@ async def seed() -> None:
                 session.add(question)
                 existing_questions[q["text"]] = question
 
-            answers_by_canonical = {
-                answer.canonical: answer for answer in question.answers
-            }
-            for old_canonical, new_canonical in LEGACY_CANONICAL_RENAMES.get(
-                q["text"], {}
-            ).items():
+            answers_by_canonical = {answer.canonical: answer for answer in question.answers}
+            for old_canonical, new_canonical in LEGACY_CANONICAL_RENAMES.get(q["text"], {}).items():
                 legacy_answer = answers_by_canonical.get(old_canonical)
                 if legacy_answer is not None and new_canonical not in answers_by_canonical:
                     legacy_answer.canonical = new_canonical
