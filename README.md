@@ -123,6 +123,9 @@ backend/.venv/bin/python backend/scripts/generate_protocol_types.py
 | `INVITE_TTL_SECONDS` | 90 | (שלב 2) תוקף הזמנה למשחק |
 | `SWAP_QUESTION_COST_COINS` | 50 | (שלב 3) עלות החלפת שאלה |
 | `FUZZY_MATCHING_ENABLED` | true | התאמה שמרנית לשגיאת הקלדה אחת, עם הגנת עמימות |
+| `UNIQUE_PREFIX_MATCHING_ENABLED` | true | השלמה רק כאשר הקידומת מצביעה על תשובה אחת בשאלה הנוכחית |
+| `UNIQUE_PREFIX_MIN_LENGTH` | 3 | מספר תווים מינימלי להפעלת השלמה |
+| `DEFINITE_ARTICLE_MATCHING_ENABLED` | true | קבלת ה״א הידיעה כאשר הצורה בלעדיה היא תשובה מדויקת |
 
 לפרטי הארכיטקטורה המלאים (State Machine, סכמת DB, חלוקת PostgreSQL/Redis, מקרי קצה): [ARCHITECTURE.md](ARCHITECTURE.md). דו״ח הביקורת של Milestone A נמצא ב-[docs/PHASE1_AUDIT.md](docs/PHASE1_AUDIT.md).
 

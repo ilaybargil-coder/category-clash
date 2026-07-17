@@ -19,6 +19,11 @@ from .question_bank_expansion_v2 import (
     ANSWER_GROUP_UPDATES_V2,
     QUESTION_EXPANSIONS_V2,
 )
+from .question_bank_expansion_v3 import (
+    ANSWER_ALIAS_ADDITIONS_V3,
+    ANSWER_GROUP_UPDATES_V3,
+    QUESTION_EXPANSIONS_V3,
+)
 
 DEMO_PASSWORD = "demo1234"
 
@@ -217,9 +222,36 @@ for question in QUESTIONS:
             if alias != canonical and alias not in target:
                 target.append(alias)
 
+    existing_canonicals = {canonical for canonical, _aliases, _group in question["answers"]}
+    for canonical, aliases, group in QUESTION_EXPANSIONS_V3.get(question["text"], []):
+        if canonical not in existing_canonicals:
+            question["answers"].append((canonical, list(aliases), group))
+            existing_canonicals.add(canonical)
 
 QUESTIONS_BEFORE_CLAUDE_CORRECTIONS = QUESTIONS
 QUESTIONS = apply_corrections(QUESTIONS_BEFORE_CLAUDE_CORRECTIONS)
+
+for question in QUESTIONS:
+    group_updates_v3 = ANSWER_GROUP_UPDATES_V3.get(question["text"], {})
+    if group_updates_v3:
+        question["answers"] = [
+            (canonical, aliases, group_updates_v3.get(canonical, group))
+            for canonical, aliases, group in question["answers"]
+        ]
+
+    answers_by_canonical_v3 = {
+        canonical: aliases for canonical, aliases, _group in question["answers"]
+    }
+    for canonical, aliases in ANSWER_ALIAS_ADDITIONS_V3.get(question["text"], {}).items():
+        target = answers_by_canonical_v3.get(canonical)
+        if target is None:
+            raise ValueError(
+                f"V3 alias expansion targets missing answer {canonical!r} "
+                f"in question {question['text']!r}"
+            )
+        for alias in aliases:
+            if alias != canonical and alias not in target:
+                target.append(alias)
 
 
 LEGACY_CANONICAL_RENAMES: dict[str, dict[str, str]] = {

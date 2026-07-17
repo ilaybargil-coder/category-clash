@@ -92,6 +92,34 @@ class QuestionIndex:
     def lookup(self, normalized: str) -> ApprovedEntry | None:
         return self._by_form.get(normalized)
 
+    def lookup_unique_prefix(
+        self,
+        normalized: str,
+        *,
+        min_length: int,
+    ) -> ApprovedEntry | None:
+        """Resolve a prefix only when every matching form is one answer.
+
+        Completion is deliberately scoped to the current question.  It never
+        guesses between two approved answers: ``דג`` remains ambiguous when a
+        question contains several fish, while a distinctive prefix such as
+        ``מחשבת`` can safely resolve to ``מחשבת ישראל``.
+        """
+
+        compact_length = len(normalized.replace(" ", ""))
+        if compact_length < min_length:
+            return None
+
+        matches: dict[int, ApprovedEntry] = {}
+        for form, entry in self._by_form.items():
+            if form.startswith(normalized):
+                matches[entry.answer_id] = entry
+                if len(matches) > 1:
+                    return None
+        if len(matches) != 1:
+            return None
+        return next(iter(matches.values()))
+
     def lookup_typo(
         self,
         normalized: str,
@@ -163,12 +191,18 @@ class RoundValidator:
         fuzzy_enabled: bool = False,
         fuzzy_max_distance: int = 1,
         fuzzy_min_length: int = 4,
+        unique_prefix_enabled: bool = True,
+        unique_prefix_min_length: int = 3,
+        definite_article_enabled: bool = True,
     ) -> None:
         self._index = index
         self._max_length = max_length
         self._fuzzy_enabled = fuzzy_enabled
         self._fuzzy_max_distance = fuzzy_max_distance
         self._fuzzy_min_length = fuzzy_min_length
+        self._unique_prefix_enabled = unique_prefix_enabled
+        self._unique_prefix_min_length = unique_prefix_min_length
+        self._definite_article_enabled = definite_article_enabled
         self._used_answer_ids: set[int] = set()
         self._used_groups: set[str] = set()
 
@@ -180,6 +214,17 @@ class RoundValidator:
             return ValidationResult(AnswerStatus.INVALID, None, normalized)
 
         entry = self._index.lookup(normalized)
+        if entry is None and self._definite_article_enabled and normalized.startswith("ה"):
+            # Accept natural forms such as "המסך" without storing a noisy
+            # duplicate alias for every Hebrew noun. Exact forms always win,
+            # so legitimate answers that begin with ה are never altered.
+            without_article = normalized[1:].lstrip()
+            entry = self._index.lookup(without_article)
+        if entry is None and self._unique_prefix_enabled:
+            entry = self._index.lookup_unique_prefix(
+                normalized,
+                min_length=self._unique_prefix_min_length,
+            )
         if entry is None and self._fuzzy_enabled:
             entry = self._index.lookup_typo(
                 normalized,

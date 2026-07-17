@@ -44,3 +44,9 @@ services:
         value: "1"
       - key: FUZZY_MIN_LENGTH
         value: "4"
+      - key: UNIQUE_PREFIX_MATCHING_ENABLED
+        value: "true"
+      - key: UNIQUE_PREFIX_MIN_LENGTH
+        value: "3"
+      - key: DEFINITE_ARTICLE_MATCHING_ENABLED
+        value: "true"

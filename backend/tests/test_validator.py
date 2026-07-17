@@ -134,3 +134,63 @@ class TestTypoTolerance:
         v = RoundValidator(make_index(), fuzzy_enabled=True, fuzzy_min_length=4)
         assert v.check("מסוק").status == AnswerStatus.VALID
         assert v.check("מסןק").status == AnswerStatus.DUPLICATE
+
+
+class TestSafeCompletion:
+    def test_accepts_unique_multiword_prefix(self):
+        index = build_question_index(
+            [
+                (1, "מחשבת ישראל", None, []),
+                (2, "מדעי החברה", None, []),
+            ]
+        )
+        result = RoundValidator(index).check("מחשבת")
+        assert result.status == AnswerStatus.VALID
+        assert result.entry is not None
+        assert result.entry.canonical == "מחשבת ישראל"
+
+    def test_rejects_prefix_shared_by_different_answers(self):
+        index = build_question_index(
+            [
+                (1, "כבל HDMI", "cables", []),
+                (2, "כבל USB", "cables", []),
+            ]
+        )
+        assert RoundValidator(index).check("כבל").status == AnswerStatus.INVALID
+
+    def test_exact_answer_wins_even_when_it_prefixes_other_answers(self):
+        index = build_question_index(
+            [
+                (1, "כבל", "cables", []),
+                (2, "כבל HDMI", "cables", []),
+                (3, "כבל USB", "cables", []),
+            ]
+        )
+        result = RoundValidator(index).check("כבל")
+        assert result.status == AnswerStatus.VALID
+        assert result.entry is not None
+        assert result.entry.canonical == "כבל"
+
+    def test_does_not_complete_two_character_fragment(self):
+        assert RoundValidator(make_index()).check("מנ").status == AnswerStatus.INVALID
+
+    def test_can_be_disabled(self):
+        validator = RoundValidator(make_index(), unique_prefix_enabled=False)
+        assert validator.check("פפי").status == AnswerStatus.INVALID
+
+    def test_accepts_definite_article_for_exact_answer(self):
+        result = RoundValidator(make_index()).check("המסוק")
+        assert result.status == AnswerStatus.VALID
+        assert result.entry is not None
+        assert result.entry.canonical == "מסוק"
+
+    def test_exact_form_starting_with_hebrew_he_wins(self):
+        index = build_question_index(
+            [
+                (1, "הולנד", None, []),
+                (2, "ולנד", None, []),
+            ]
+        )
+        result = RoundValidator(index).check("הולנד")
+        assert result.entry is not None
+        assert result.entry.canonical == "הולנד"

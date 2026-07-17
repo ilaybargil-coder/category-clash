@@ -52,6 +52,9 @@ class Settings(BaseSettings):
     fuzzy_matching_enabled: bool = False
     fuzzy_max_distance: int = 1
     fuzzy_min_length: int = 4
+    unique_prefix_matching_enabled: bool = True
+    unique_prefix_min_length: int = 3
+    definite_article_matching_enabled: bool = True
 
     @property
     def async_database_url(self) -> str:

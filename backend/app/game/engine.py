@@ -56,6 +56,9 @@ class GameConfig:
     fuzzy_matching_enabled: bool = False
     fuzzy_max_distance: int = 1
     fuzzy_min_length: int = 4
+    unique_prefix_matching_enabled: bool = True
+    unique_prefix_min_length: int = 3
+    definite_article_matching_enabled: bool = True
 
 
 @dataclass
@@ -329,6 +332,9 @@ class GameRoom:
             fuzzy_enabled=self.config.fuzzy_matching_enabled,
             fuzzy_max_distance=self.config.fuzzy_max_distance,
             fuzzy_min_length=self.config.fuzzy_min_length,
+            unique_prefix_enabled=self.config.unique_prefix_matching_enabled,
+            unique_prefix_min_length=self.config.unique_prefix_min_length,
+            definite_article_enabled=self.config.definite_article_matching_enabled,
         )
         self.answers = []
         self.last_round_result = None
