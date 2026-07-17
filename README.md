@@ -122,7 +122,7 @@ backend/.venv/bin/python backend/scripts/generate_protocol_types.py
 | `DISCONNECT_FORFEIT_SECONDS` | 60 | זמן חסד לחזרה אחרי ניתוק לפני הפסד טכני |
 | `INVITE_TTL_SECONDS` | 90 | (שלב 2) תוקף הזמנה למשחק |
 | `SWAP_QUESTION_COST_COINS` | 50 | (שלב 3) עלות החלפת שאלה |
-| `FUZZY_MATCHING_ENABLED` | false | (שלב 3) התאמה עמידה לשגיאות כתיב |
+| `FUZZY_MATCHING_ENABLED` | true | התאמה שמרנית לשגיאת הקלדה אחת, עם הגנת עמימות |
 
 לפרטי הארכיטקטורה המלאים (State Machine, סכמת DB, חלוקת PostgreSQL/Redis, מקרי קצה): [ARCHITECTURE.md](ARCHITECTURE.md). דו״ח הביקורת של Milestone A נמצא ב-[docs/PHASE1_AUDIT.md](docs/PHASE1_AUDIT.md).
 
@@ -133,7 +133,7 @@ backend/.venv/bin/python backend/scripts/generate_protocol_types.py
 - Backend liveness: `/health`
 - Backend readiness מול PostgreSQL והגדרות authentication: `/ready`
 - Render משתמש ב-`0.0.0.0:$PORT` וב-Uvicorn worker יחיד.
-- ה-frontend משתמש ב-HTTPS/WSS בפרודקשן ומציג מסך המתנה בזמן cold start.
+- ה-frontend משתמש ב-HTTPS/WSS בפרודקשן ומעיר את Render ברקע בלי לחסום את הממשק.
 - גרסת הבטא החינמית מאבדת משחק פעיל אם תהליך Render מופעל מחדש.
 
 ## מפת דרכים
@@ -141,6 +141,7 @@ backend/.venv/bin/python backend/scripts/generate_protocol_types.py
 - **Phase 1 — ליבת המשחק** ✅ (הושלם)
 - **Phase 2A — הרשמה והתחברות עם session מתמשך** ✅
 - **Phase 2B — חברים, presence והזמנות עם טיימר 90 שניות**
-- **Phase 3 — מנוע שאלות: fuzzy matching, החלפת שאלה במטבעות, לוג תשובות שנדחו**
+- **Phase 3A — מאגר מורחב ו-fuzzy matching שמרני** ✅
+- **Phase 3B — החלפת שאלה במטבעות ומסך סקירת תשובות שנדחו**
 - **Phase 4 — ממשק Admin**
 - **Phase 5 — ליטוש: אנימציות, reconnect משופר, אבטחה, ביצועים**

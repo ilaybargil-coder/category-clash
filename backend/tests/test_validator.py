@@ -16,6 +16,7 @@ def make_index():
             (5, "אודם", "lipstick", []),
             (6, "סוסון ים", None, ["סוסון-ים"]),
             (7, "ליצ'י", None, []),
+            (8, "מסוק", None, []),
         ]
     )
 
@@ -97,3 +98,39 @@ class TestRoundValidator:
         v = RoundValidator(make_index())
         assert v.check("תפוח").status == AnswerStatus.INVALID
         assert v.check("מנגו").status == AnswerStatus.VALID
+
+
+class TestTypoTolerance:
+    def test_is_disabled_by_default(self):
+        v = RoundValidator(make_index())
+        assert v.check("מסןק").status == AnswerStatus.INVALID
+
+    def test_accepts_neighbor_key_substitution_in_short_word(self):
+        v = RoundValidator(make_index(), fuzzy_enabled=True, fuzzy_min_length=4)
+        result = v.check("מסןק")
+        assert result.status == AnswerStatus.VALID
+        assert result.entry is not None
+        assert result.entry.canonical == "מסוק"
+
+    def test_accepts_adjacent_transposition(self):
+        v = RoundValidator(make_index(), fuzzy_enabled=True, fuzzy_min_length=4)
+        assert v.check("מנוג").status == AnswerStatus.VALID
+
+    def test_rejects_non_neighbor_substitution_in_short_word(self):
+        v = RoundValidator(make_index(), fuzzy_enabled=True, fuzzy_min_length=4)
+        assert v.check("מסאק").status == AnswerStatus.INVALID
+
+    def test_rejects_an_ambiguous_typo(self):
+        index = build_question_index(
+            [
+                (1, "מנורה", None, []),
+                (2, "מניעה", None, []),
+            ]
+        )
+        v = RoundValidator(index, fuzzy_enabled=True, fuzzy_min_length=4)
+        assert v.check("מנירה").status == AnswerStatus.INVALID
+
+    def test_fuzzy_alias_of_used_answer_is_duplicate(self):
+        v = RoundValidator(make_index(), fuzzy_enabled=True, fuzzy_min_length=4)
+        assert v.check("מסוק").status == AnswerStatus.VALID
+        assert v.check("מסןק").status == AnswerStatus.DUPLICATE

@@ -38,3 +38,9 @@ services:
         value: "300"
       - key: READINESS_TIMEOUT_SECONDS
         value: "3"
+      - key: FUZZY_MATCHING_ENABLED
+        value: "true"
+      - key: FUZZY_MAX_DISTANCE
+        value: "1"
+      - key: FUZZY_MIN_LENGTH
+        value: "4"

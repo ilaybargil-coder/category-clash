@@ -53,6 +53,9 @@ class GameConfig:
     rounds_to_win: int = 2
     max_answer_length: int = 60
     disconnect_forfeit_seconds: float = 60.0
+    fuzzy_matching_enabled: bool = False
+    fuzzy_max_distance: int = 1
+    fuzzy_min_length: int = 4
 
 
 @dataclass
@@ -320,7 +323,13 @@ class GameRoom:
         self.round_no += 1
         self.used_question_ids.add(question.id)
         self.question = question
-        self.validator = RoundValidator(question.index, max_length=self.config.max_answer_length)
+        self.validator = RoundValidator(
+            question.index,
+            max_length=self.config.max_answer_length,
+            fuzzy_enabled=self.config.fuzzy_matching_enabled,
+            fuzzy_max_distance=self.config.fuzzy_max_distance,
+            fuzzy_min_length=self.config.fuzzy_min_length,
+        )
         self.answers = []
         self.last_round_result = None
 

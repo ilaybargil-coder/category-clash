@@ -1,4 +1,4 @@
-"""Idempotent seed: two demo users + 10 Hebrew sample questions.
+"""Idempotent seed for demo users and the curated Hebrew question bank.
 
 Run with:  python -m app.seed
 """
@@ -6,10 +6,12 @@ Run with:  python -m app.seed
 import asyncio
 
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from .auth import hash_password
 from .db import SessionLocal
 from .models import AnswerAlias, ApprovedAnswer, Question, User
+from .question_bank import ADDITIONAL_QUESTIONS
 
 DEMO_PASSWORD = "demo1234"
 
@@ -181,6 +183,8 @@ QUESTIONS: list[dict] = [
     },
 ]
 
+QUESTIONS.extend(ADDITIONAL_QUESTIONS)
+
 
 async def seed() -> None:
     async with SessionLocal() as session:
@@ -196,16 +200,50 @@ async def seed() -> None:
                     )
                 )
 
-        existing_questions = set((await session.execute(select(Question.text))).scalars().all())
+        existing_questions = {
+            question.text: question
+            for question in (
+                (
+                    await session.execute(
+                        select(Question).options(
+                            selectinload(Question.answers).selectinload(
+                                ApprovedAnswer.aliases
+                            )
+                        )
+                    )
+                )
+                .scalars()
+                .unique()
+                .all()
+            )
+        }
         for q in QUESTIONS:
-            if q["text"] in existing_questions:
-                continue
-            question = Question(text=q["text"])
+            question = existing_questions.get(q["text"])
+            if question is None:
+                question = Question(text=q["text"])
+                session.add(question)
+                existing_questions[q["text"]] = question
+
+            answers_by_canonical = {
+                answer.canonical: answer for answer in question.answers
+            }
             for canonical, aliases, group in q["answers"]:
-                answer = ApprovedAnswer(canonical=canonical, semantic_group=group)
-                answer.aliases = [AnswerAlias(alias=a) for a in aliases]
-                question.answers.append(answer)
-            session.add(question)
+                answer = answers_by_canonical.get(canonical)
+                if answer is None:
+                    answer = ApprovedAnswer(
+                        canonical=canonical,
+                        semantic_group=group,
+                    )
+                    question.answers.append(answer)
+                    answers_by_canonical[canonical] = answer
+                elif group is not None:
+                    answer.semantic_group = group
+
+                existing_aliases = {item.alias for item in answer.aliases}
+                for alias in aliases:
+                    if alias not in existing_aliases and alias != canonical:
+                        answer.aliases.append(AnswerAlias(alias=alias))
+                        existing_aliases.add(alias)
 
         await session.commit()
     print("Seed complete.")

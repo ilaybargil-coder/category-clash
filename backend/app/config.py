@@ -46,12 +46,12 @@ class Settings(BaseSettings):
     disconnect_forfeit_seconds: float = 60.0
     websocket_send_timeout_seconds: float = 2.0
 
-    # Phase 2+ (declared now so the values are centralised from day one)
+    # Phase 2+
     invite_ttl_seconds: int = 90
     swap_question_cost_coins: int = 50
     fuzzy_matching_enabled: bool = False
     fuzzy_max_distance: int = 1
-    fuzzy_min_length: int = 5
+    fuzzy_min_length: int = 4
 
     @property
     def async_database_url(self) -> str:

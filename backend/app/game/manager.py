@@ -32,6 +32,9 @@ def game_config_from_settings() -> GameConfig:
         rounds_to_win=settings.rounds_to_win,
         max_answer_length=settings.max_answer_length,
         disconnect_forfeit_seconds=settings.disconnect_forfeit_seconds,
+        fuzzy_matching_enabled=settings.fuzzy_matching_enabled,
+        fuzzy_max_distance=settings.fuzzy_max_distance,
+        fuzzy_min_length=settings.fuzzy_min_length,
     )
 
 

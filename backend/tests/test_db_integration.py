@@ -116,7 +116,8 @@ async def test_seed_is_idempotent_and_never_multiplies_reference_data() -> None:
 
     assert after_first == after_second
     assert after_second[0] >= 2
-    assert after_second[1] >= 10
+    assert after_second[1] >= 30
+    assert after_second[2] >= 500
 
 
 @pytest.mark.integration
