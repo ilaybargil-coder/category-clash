@@ -11,11 +11,11 @@ from app.question_bank_corrections_claude import (
     QUESTION_CORRECTIONS,
     apply_corrections,
 )
-from app.seed import QUESTIONS
+from app.seed import QUESTIONS, QUESTIONS_BEFORE_CLAUDE_CORRECTIONS
 
-CORRECTED = apply_corrections(QUESTIONS)
+CORRECTED = QUESTIONS
 CORRECTED_BY_TEXT = {question["text"]: question for question in CORRECTED}
-ORIGINAL_BY_TEXT = {question["text"]: question for question in QUESTIONS}
+ORIGINAL_BY_TEXT = {question["text"]: question for question in QUESTIONS_BEFORE_CLAUDE_CORRECTIONS}
 
 
 def forms_of(question_text: str) -> dict[str, str]:
@@ -51,15 +51,16 @@ class TestScope:
         for question in QUESTIONS:
             if question["text"] in CATEGORY_SCOPE_1_20:
                 continue
-            assert (
-                CORRECTED_BY_TEXT[question["text"]]["answers"]
-                == question["answers"]
-            ), question["text"]
+            assert CORRECTED_BY_TEXT[question["text"]]["answers"] == question["answers"], question[
+                "text"
+            ]
 
     def test_apply_is_pure_and_idempotent(self):
-        snapshot = [list(question["answers"]) for question in QUESTIONS]
-        apply_corrections(QUESTIONS)
-        assert snapshot == [list(question["answers"]) for question in QUESTIONS]
+        snapshot = [list(question["answers"]) for question in QUESTIONS_BEFORE_CLAUDE_CORRECTIONS]
+        apply_corrections(QUESTIONS_BEFORE_CLAUDE_CORRECTIONS)
+        assert snapshot == [
+            list(question["answers"]) for question in QUESTIONS_BEFORE_CLAUDE_CORRECTIONS
+        ]
         assert apply_corrections(CORRECTED) == CORRECTED
 
 
@@ -73,7 +74,10 @@ class TestIntegrityAfterCorrections:
                     assert normalized, (question["text"], form)
                     previous = seen.get(normalized)
                     assert previous in (None, canonical), (
-                        question["text"], form, previous, canonical,
+                        question["text"],
+                        form,
+                        previous,
+                        canonical,
                     )
                     seen[normalized] = canonical
 
@@ -167,28 +171,46 @@ class TestSemanticGroups:
 class TestAdditions:
     def test_winter_olympic_sports_are_accepted(self):
         forms = forms_of("כתבו שמות של ענפי ספורט אולימפיים")
-        for sport in ("סקי", "סנובורד", "החלקה אמנותית", "הוקי קרח",
-                      "ביאתלון", "קרלינג", "ברייקדאנס"):
+        for sport in (
+            "סקי",
+            "סנובורד",
+            "החלקה אמנותית",
+            "הוקי קרח",
+            "ביאתלון",
+            "קרלינג",
+            "ברייקדאנס",
+        ):
             assert normalize_answer(sport) in forms, sport
 
     def test_verified_israeli_cities_are_accepted(self):
         forms = forms_of("כתבו שמות של ערים בישראל")
-        for city in ("קריית אתא", "קרית אתא", "רמת השרון", "נתיבות",
-                     "אום אל פחם", "רהט", "סחנין", "סכנין", "שפרעם",
-                     "טמרה", "כפר קאסם", "ראש העין", "ביתר עילית"):
+        for city in (
+            "קריית אתא",
+            "קרית אתא",
+            "רמת השרון",
+            "נתיבות",
+            "אום אל פחם",
+            "רהט",
+            "סחנין",
+            "סכנין",
+            "שפרעם",
+            "טמרה",
+            "כפר קאסם",
+            "ראש העין",
+            "ביתר עילית",
+        ):
             assert normalize_answer(city) in forms, city
 
-    def test_unverified_cities_are_not_added(self):
+    def test_additionally_verified_cities_are_added(self):
         forms = forms_of("כתבו שמות של ערים בישראל")
-        assert normalize_answer("קלנסווה") not in forms
-        # "טירה" הושמטה בכוונה עד אימות; "טירת כרמל" נשארת תקפה.
+        assert forms[normalize_answer("קלנסווה")] == "קלנסווה"
+        assert forms[normalize_answer("קלנסואה")] == "קלנסווה"
+        assert forms[normalize_answer("טירה")] == "טירה"
         assert forms.get(normalize_answer("טירת כרמל")) == "טירת כרמל"
-        assert normalize_answer("טירה") not in forms
 
     def test_missing_capitals_are_accepted(self):
         forms = forms_of("כתבו שמות של ערי בירה בעולם")
-        for capital in ("קייב", "טהרן", "בגדד", "דמשק", "רייקיאוויק",
-                        "קטמנדו", "אולן בטור"):
+        for capital in ("קייב", "טהרן", "בגדד", "דמשק", "רייקיאוויק", "קטמנדו", "אולן בטור"):
             assert normalize_answer(capital) in forms, capital
 
     def test_body_parts_additions(self):
@@ -218,8 +240,7 @@ class TestAdditions:
                 for form in (canonical, *aliases)
             }
             renamed_away = {
-                normalize_answer(old)
-                for old in correction.get("rename_canonicals", {})
+                normalize_answer(old) for old in correction.get("rename_canonicals", {})
             }
             removed = {
                 normalize_answer(alias)

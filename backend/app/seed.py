@@ -12,6 +12,7 @@ from .auth import hash_password
 from .db import SessionLocal
 from .models import AnswerAlias, ApprovedAnswer, Question, User
 from .question_bank import ADDITIONAL_QUESTIONS
+from .question_bank_corrections_claude import QUESTION_CORRECTIONS, apply_corrections
 from .question_bank_enrichment import QUESTION_ENRICHMENTS
 from .question_bank_expansion_v2 import (
     ANSWER_ALIAS_ADDITIONS_V2,
@@ -217,10 +218,24 @@ for question in QUESTIONS:
                 target.append(alias)
 
 
+QUESTIONS_BEFORE_CLAUDE_CORRECTIONS = QUESTIONS
+QUESTIONS = apply_corrections(QUESTIONS_BEFORE_CLAUDE_CORRECTIONS)
+
+
 LEGACY_CANONICAL_RENAMES: dict[str, dict[str, str]] = {
     "כתבו שמות של משחקי קופסה וקלפים": {
         "סולמות וחבלים": "סולמות ונחשים",
     },
+}
+for question_text, correction in QUESTION_CORRECTIONS.items():
+    LEGACY_CANONICAL_RENAMES.setdefault(question_text, {}).update(
+        correction.get("rename_canonicals", {})
+    )
+
+LEGACY_ALIAS_REMOVALS: dict[str, dict[str, list[str]]] = {
+    question_text: correction["remove_aliases"]
+    for question_text, correction in QUESTION_CORRECTIONS.items()
+    if correction.get("remove_aliases")
 }
 
 
@@ -267,6 +282,15 @@ async def seed() -> None:
                     legacy_answer.canonical = new_canonical
                     answers_by_canonical.pop(old_canonical)
                     answers_by_canonical[new_canonical] = legacy_answer
+                elif legacy_answer is not None:
+                    legacy_answer.is_active = False
+
+            for canonical, aliases_to_remove in LEGACY_ALIAS_REMOVALS.get(q["text"], {}).items():
+                answer = answers_by_canonical.get(canonical)
+                if answer is not None:
+                    answer.aliases = [
+                        alias for alias in answer.aliases if alias.alias not in aliases_to_remove
+                    ]
 
             for canonical, aliases, group in q["answers"]:
                 answer = answers_by_canonical.get(canonical)

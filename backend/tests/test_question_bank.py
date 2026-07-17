@@ -4,7 +4,7 @@ from app.seed import QUESTIONS
 
 def test_question_bank_is_substantially_populated():
     assert len(QUESTIONS) >= 30
-    assert sum(len(question["answers"]) for question in QUESTIONS) >= 1_200
+    assert sum(len(question["answers"]) for question in QUESTIONS) >= 1_400
     assert all(len(question["answers"]) >= 20 for question in QUESTIONS)
 
 
