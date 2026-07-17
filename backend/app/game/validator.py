@@ -53,9 +53,7 @@ def _keyboard_positions() -> dict[str, list[tuple[int, float]]]:
         for row_no, row in enumerate(rows):
             for column, character in enumerate(row):
                 normalized = character.translate(_FINAL_LETTERS)
-                positions.setdefault(normalized, []).append(
-                    (row_no, column + offsets[row_no])
-                )
+                positions.setdefault(normalized, []).append((row_no, column + offsets[row_no]))
     return positions
 
 
@@ -240,8 +238,7 @@ def _keys_are_neighbors(left: str, right: str) -> bool:
     left_positions = _KEY_POSITIONS.get(left, ())
     right_positions = _KEY_POSITIONS.get(right, ())
     return any(
-        abs(left_row - right_row) <= 1
-        and abs(left_column - right_column) <= 1.25
+        abs(left_row - right_row) <= 1 and abs(left_column - right_column) <= 1.25
         for left_row, left_column in left_positions
         for right_row, right_column in right_positions
     )
@@ -254,7 +251,8 @@ def _safe_typo_pair(typed: str, approved: str) -> bool:
         return True
     if len(typed) == len(approved):
         mismatches = [
-            index for index, pair in enumerate(zip(typed, approved, strict=True))
+            index
+            for index, pair in enumerate(zip(typed, approved, strict=True))
             if pair[0] != pair[1]
         ]
         if len(mismatches) == 1:

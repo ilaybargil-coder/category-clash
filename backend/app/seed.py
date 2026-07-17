@@ -12,7 +12,13 @@ from .auth import hash_password
 from .db import SessionLocal
 from .models import AnswerAlias, ApprovedAnswer, Question, User
 from .question_bank import ADDITIONAL_QUESTIONS
+from .question_bank_corrections_claude import QUESTION_CORRECTIONS, apply_corrections
 from .question_bank_enrichment import QUESTION_ENRICHMENTS
+from .question_bank_expansion_v2 import (
+    ANSWER_ALIAS_ADDITIONS_V2,
+    ANSWER_GROUP_UPDATES_V2,
+    QUESTION_EXPANSIONS_V2,
+)
 
 DEMO_PASSWORD = "demo1234"
 
@@ -188,12 +194,48 @@ QUESTIONS.extend(ADDITIONAL_QUESTIONS)
 
 for question in QUESTIONS:
     question["answers"].extend(QUESTION_ENRICHMENTS.get(question["text"], []))
+    question["answers"].extend(QUESTION_EXPANSIONS_V2.get(question["text"], []))
+
+    group_updates = ANSWER_GROUP_UPDATES_V2.get(question["text"], {})
+    if group_updates:
+        question["answers"] = [
+            (canonical, aliases, group_updates.get(canonical, group))
+            for canonical, aliases, group in question["answers"]
+        ]
+
+    answers_by_canonical = {
+        canonical: aliases for canonical, aliases, _group in question["answers"]
+    }
+    for canonical, aliases in ANSWER_ALIAS_ADDITIONS_V2.get(question["text"], {}).items():
+        target = answers_by_canonical.get(canonical)
+        if target is None:
+            raise ValueError(
+                f"Alias expansion targets missing answer {canonical!r} "
+                f"in question {question['text']!r}"
+            )
+        for alias in aliases:
+            if alias != canonical and alias not in target:
+                target.append(alias)
+
+
+QUESTIONS_BEFORE_CLAUDE_CORRECTIONS = QUESTIONS
+QUESTIONS = apply_corrections(QUESTIONS_BEFORE_CLAUDE_CORRECTIONS)
 
 
 LEGACY_CANONICAL_RENAMES: dict[str, dict[str, str]] = {
     "כתבו שמות של משחקי קופסה וקלפים": {
         "סולמות וחבלים": "סולמות ונחשים",
     },
+}
+for question_text, correction in QUESTION_CORRECTIONS.items():
+    LEGACY_CANONICAL_RENAMES.setdefault(question_text, {}).update(
+        correction.get("rename_canonicals", {})
+    )
+
+LEGACY_ALIAS_REMOVALS: dict[str, dict[str, list[str]]] = {
+    question_text: correction["remove_aliases"]
+    for question_text, correction in QUESTION_CORRECTIONS.items()
+    if correction.get("remove_aliases")
 }
 
 
@@ -217,9 +259,7 @@ async def seed() -> None:
                 (
                     await session.execute(
                         select(Question).options(
-                            selectinload(Question.answers).selectinload(
-                                ApprovedAnswer.aliases
-                            )
+                            selectinload(Question.answers).selectinload(ApprovedAnswer.aliases)
                         )
                     )
                 )
@@ -235,17 +275,22 @@ async def seed() -> None:
                 session.add(question)
                 existing_questions[q["text"]] = question
 
-            answers_by_canonical = {
-                answer.canonical: answer for answer in question.answers
-            }
-            for old_canonical, new_canonical in LEGACY_CANONICAL_RENAMES.get(
-                q["text"], {}
-            ).items():
+            answers_by_canonical = {answer.canonical: answer for answer in question.answers}
+            for old_canonical, new_canonical in LEGACY_CANONICAL_RENAMES.get(q["text"], {}).items():
                 legacy_answer = answers_by_canonical.get(old_canonical)
                 if legacy_answer is not None and new_canonical not in answers_by_canonical:
                     legacy_answer.canonical = new_canonical
                     answers_by_canonical.pop(old_canonical)
                     answers_by_canonical[new_canonical] = legacy_answer
+                elif legacy_answer is not None:
+                    legacy_answer.is_active = False
+
+            for canonical, aliases_to_remove in LEGACY_ALIAS_REMOVALS.get(q["text"], {}).items():
+                answer = answers_by_canonical.get(canonical)
+                if answer is not None:
+                    answer.aliases = [
+                        alias for alias in answer.aliases if alias.alias not in aliases_to_remove
+                    ]
 
             for canonical, aliases, group in q["answers"]:
                 answer = answers_by_canonical.get(canonical)

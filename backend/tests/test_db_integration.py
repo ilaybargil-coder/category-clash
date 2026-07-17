@@ -117,7 +117,65 @@ async def test_seed_is_idempotent_and_never_multiplies_reference_data() -> None:
     assert after_first == after_second
     assert after_second[0] >= 2
     assert after_second[1] >= 30
-    assert after_second[2] >= 1_000
+    assert after_second[2] >= 1_400
+
+
+@pytest.mark.integration
+@pytest.mark.skipif(
+    os.getenv("RUN_DB_INTEGRATION") != "1",
+    reason="set RUN_DB_INTEGRATION=1 with PostgreSQL running",
+)
+async def test_seed_migrates_legacy_wrong_answers_and_aliases() -> None:
+    await seed()
+    async with SessionLocal() as session:
+        tropical_id = await session.scalar(
+            select(Question.id).where(Question.text == "כתבו שמות של פירות טרופיים")
+        )
+        dentist_id = await session.scalar(
+            select(ApprovedAnswer.id)
+            .join(Question, Question.id == ApprovedAnswer.question_id)
+            .where(
+                Question.text == "כתבו שמות של מקצועות",
+                ApprovedAnswer.canonical == "רופא שיניים",
+            )
+        )
+        assert tropical_id is not None and dentist_id is not None
+        legacy_answer = ApprovedAnswer(question_id=tropical_id, canonical="סלק")
+        session.add(legacy_answer)
+        session.add(AnswerAlias(approved_answer_id=dentist_id, alias="שיננית"))
+        await session.commit()
+        legacy_id = legacy_answer.id
+
+    await seed()
+
+    async with SessionLocal() as session:
+        legacy_is_active = await session.scalar(
+            select(ApprovedAnswer.is_active).where(ApprovedAnswer.id == legacy_id)
+        )
+        salak_count = await session.scalar(
+            select(func.count())
+            .select_from(ApprovedAnswer)
+            .join(Question, Question.id == ApprovedAnswer.question_id)
+            .where(
+                Question.text == "כתבו שמות של פירות טרופיים",
+                ApprovedAnswer.canonical == "סאלאק",
+                ApprovedAnswer.is_active.is_(True),
+            )
+        )
+        wrong_alias_count = await session.scalar(
+            select(func.count())
+            .select_from(AnswerAlias)
+            .where(
+                AnswerAlias.approved_answer_id == dentist_id,
+                AnswerAlias.alias == "שיננית",
+            )
+        )
+        assert legacy_is_active is False
+        assert salak_count == 1
+        assert wrong_alias_count == 0
+
+        await session.execute(delete(ApprovedAnswer).where(ApprovedAnswer.id == legacy_id))
+        await session.commit()
 
 
 @pytest.mark.integration
