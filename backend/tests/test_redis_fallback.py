@@ -46,6 +46,16 @@ async def test_expiry_uses_injected_clock() -> None:
     assert await client.ttl("key") == -2
 
 
+async def test_px_expiry_uses_injected_clock() -> None:
+    now = [100.0]
+    client = InMemoryRedis(clock=lambda: now[0])
+
+    await client.set("key", "value", px=250)
+    now[0] = 100.251
+
+    assert await client.get("key") is None
+
+
 async def test_ttl_reports_remaining_whole_seconds() -> None:
     now = [10.0]
     client = InMemoryRedis(clock=lambda: now[0])

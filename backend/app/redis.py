@@ -40,7 +40,12 @@ class InMemoryRedis:
             del self._values[key]
 
     async def set(
-        self, name: str, value: Any, ex: int | float | None = None, nx: bool = False
+        self,
+        name: str,
+        value: Any,
+        ex: int | float | None = None,
+        px: int | float | None = None,
+        nx: bool = False,
     ) -> bool | None:
         async with self._lock:
             self._purge_expired()
@@ -50,7 +55,8 @@ class InMemoryRedis:
                 stored = value.decode()
             else:
                 stored = str(value)
-            expires_at = None if ex is None else self._clock() + ex
+            ttl = px / 1000 if px is not None else ex
+            expires_at = None if ttl is None else self._clock() + ttl
             self._values[name] = (stored, expires_at)
             return True
 
