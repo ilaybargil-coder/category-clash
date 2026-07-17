@@ -56,9 +56,7 @@ async def create_invite(
 ) -> CreatedInviteOut:
     target = (
         await session.execute(
-            select(User).where(
-                func.lower(User.username) == body.username.strip().lower()
-            )
+            select(User).where(func.lower(User.username) == body.username.strip().lower())
         )
     ).scalar_one_or_none()
     if target is None:
@@ -73,18 +71,14 @@ async def create_invite(
     room = room_manager.create_room()
     value = json.dumps({"room_code": room.code, "sender_id": current.id})
     try:
-        stored = await client.set(
-            key, value, ex=settings.invite_ttl_seconds, nx=True
-        )
+        stored = await client.set(key, value, ex=settings.invite_ttl_seconds, nx=True)
     except RedisError as exc:
         room_manager.rooms.pop(room.code, None)
         raise redis_unavailable(exc) from exc
     if not stored:
         room_manager.rooms.pop(room.code, None)
         raise HTTPException(status_code=409, detail="Invite already pending")
-    return CreatedInviteOut(
-        room_code=room.code, expires_in_seconds=settings.invite_ttl_seconds
-    )
+    return CreatedInviteOut(room_code=room.code, expires_in_seconds=settings.invite_ttl_seconds)
 
 
 @router.get("/invites", response_model=list[IncomingInviteOut])
@@ -95,9 +89,7 @@ async def list_invites(
     client = await get_redis()
     pending: list[tuple[int, str, int]] = []
     try:
-        async for key in client.scan_iter(
-            match=f"invite:to:{current.id}:from:*"
-        ):
+        async for key in client.scan_iter(match=f"invite:to:{current.id}:from:*"):
             value, ttl = await client.get(key), await client.ttl(key)
             if value is None or ttl <= 0:
                 continue
@@ -112,9 +104,7 @@ async def list_invites(
     senders = {
         user.id: user
         for user in (
-            (await session.execute(select(User).where(User.id.in_(sender_ids))))
-            .scalars()
-            .all()
+            (await session.execute(select(User).where(User.id.in_(sender_ids)))).scalars().all()
         )
     }
     result = [

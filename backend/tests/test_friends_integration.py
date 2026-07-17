@@ -104,9 +104,7 @@ async def test_send_request_appears_for_both_users(client, friend_users) -> None
     assert response.json()["status"] == "PENDING"
     request_id = response.json()["request_id"]
 
-    incoming = await client.get(
-        "/api/friends/requests", headers=auth_headers(recipient)
-    )
+    incoming = await client.get("/api/friends/requests", headers=auth_headers(recipient))
     outgoing = await client.get("/api/friends/requests", headers=auth_headers(sender))
     assert incoming.json()["incoming"][0]["id"] == request_id
     assert incoming.json()["incoming"][0]["user"]["id"] == sender.id

@@ -127,14 +127,10 @@ async def test_invite_list_and_single_accept(client, invite_users) -> None:
     ]
     assert 0 < incoming.json()[0]["expires_in_seconds"] <= 90
 
-    accepted = await client.post(
-        f"/api/invites/{sender.id}/accept", headers=auth_headers(friend)
-    )
+    accepted = await client.post(f"/api/invites/{sender.id}/accept", headers=auth_headers(friend))
     assert accepted.status_code == 200
     assert accepted.json() == {"room_code": room_code}
-    expired = await client.post(
-        f"/api/invites/{sender.id}/accept", headers=auth_headers(friend)
-    )
+    expired = await client.post(f"/api/invites/{sender.id}/accept", headers=auth_headers(friend))
     assert expired.status_code == 410
 
 
@@ -146,9 +142,7 @@ async def test_decline_removes_invite(client, invite_users) -> None:
         json={"username": friend.username},
     )
     assert created.status_code == 200
-    declined = await client.post(
-        f"/api/invites/{sender.id}/decline", headers=auth_headers(friend)
-    )
+    declined = await client.post(f"/api/invites/{sender.id}/decline", headers=auth_headers(friend))
     assert declined.status_code == 200
     assert declined.json() == {"declined": True}
     incoming = await client.get("/api/invites", headers=auth_headers(friend))

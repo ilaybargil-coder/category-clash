@@ -114,9 +114,7 @@ async def get_friend_ids(session: AsyncSession, user_id: int) -> list[int]:
         .scalars()
         .all()
     )
-    return [
-        row.user_b_id if row.user_a_id == user_id else row.user_a_id for row in rows
-    ]
+    return [row.user_b_id if row.user_a_id == user_id else row.user_a_id for row in rows]
 
 
 async def get_or_create_friendship(
@@ -148,7 +146,9 @@ async def search_users(
 ):
     query = q.strip()
     if len(query) < 2:
-        raise HTTPException(status_code=422, detail="Search query must contain at least 2 characters")
+        raise HTTPException(
+            status_code=422, detail="Search query must contain at least 2 characters"
+        )
     escaped_query = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
     users = (
         (
@@ -226,9 +226,7 @@ async def create_friend_request(
     try:
         target = (
             await session.execute(
-                select(User).where(
-                    func.lower(User.username) == body.username.strip().lower()
-                )
+                select(User).where(func.lower(User.username) == body.username.strip().lower())
             )
         ).scalar_one_or_none()
         if target is None:
@@ -263,9 +261,7 @@ async def create_friend_request(
             reverse.status = "ACCEPTED"
             reverse.responded_at = datetime.now(timezone.utc)
             friendship = await get_or_create_friendship(session, current.id, target.id)
-            result: PendingRequestResult | FriendshipResult = friendship_result(
-                friendship, target
-            )
+            result: PendingRequestResult | FriendshipResult = friendship_result(friendship, target)
         else:
             request = FriendRequest(sender_id=current.id, recipient_id=target.id)
             session.add(request)
@@ -307,11 +303,15 @@ async def list_friend_requests(
     ).all()
     return FriendRequestsOut(
         incoming=[
-            FriendRequestOut(id=request.id, user=friend_user_out(user), created_at=request.created_at)
+            FriendRequestOut(
+                id=request.id, user=friend_user_out(user), created_at=request.created_at
+            )
             for request, user in incoming_rows
         ],
         outgoing=[
-            FriendRequestOut(id=request.id, user=friend_user_out(user), created_at=request.created_at)
+            FriendRequestOut(
+                id=request.id, user=friend_user_out(user), created_at=request.created_at
+            )
             for request, user in outgoing_rows
         ],
     )
@@ -404,12 +404,8 @@ async def list_friends(
     )
     if not rows:
         return []
-    friend_ids = [
-        row.user_b_id if row.user_a_id == current.id else row.user_a_id for row in rows
-    ]
-    users = (
-        (await session.execute(select(User).where(User.id.in_(friend_ids)))).scalars().all()
-    )
+    friend_ids = [row.user_b_id if row.user_a_id == current.id else row.user_a_id for row in rows]
+    users = (await session.execute(select(User).where(User.id.in_(friend_ids)))).scalars().all()
     users_by_id = {user.id: user for user in users}
     return [
         FriendOut(

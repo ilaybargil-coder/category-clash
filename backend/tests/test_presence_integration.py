@@ -90,23 +90,17 @@ def auth_headers(user: User) -> dict[str, str]:
 async def test_heartbeat_reports_only_online_friends(client, presence_users) -> None:
     current, friend, stranger = presence_users
 
-    marked_online = await client.post(
-        "/api/presence/heartbeat", headers=auth_headers(friend)
-    )
+    marked_online = await client.post("/api/presence/heartbeat", headers=auth_headers(friend))
     assert marked_online.status_code == 200
 
     redis = await get_redis()
     await redis.set(f"presence:{stranger.id}", "1", ex=settings.presence_ttl_seconds)
-    response = await client.post(
-        "/api/presence/heartbeat", headers=auth_headers(current)
-    )
+    response = await client.post("/api/presence/heartbeat", headers=auth_headers(current))
     assert response.status_code == 200
     assert response.json() == {"online_friend_ids": [friend.id]}
 
     await redis.set(f"presence:{friend.id}", "1", px=1)
     await asyncio.sleep(0.02)
-    expired = await client.post(
-        "/api/presence/heartbeat", headers=auth_headers(current)
-    )
+    expired = await client.post("/api/presence/heartbeat", headers=auth_headers(current))
     assert expired.status_code == 200
     assert expired.json() == {"online_friend_ids": []}

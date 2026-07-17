@@ -63,10 +63,7 @@ class InMemoryRedis:
     async def mget(self, keys: list[str] | tuple[str, ...]) -> list[str | None]:
         async with self._lock:
             self._purge_expired()
-            return [
-                None if (item := self._values.get(key)) is None else item[0]
-                for key in keys
-            ]
+            return [None if (item := self._values.get(key)) is None else item[0] for key in keys]
 
     async def ttl(self, name: str) -> int:
         async with self._lock:
@@ -97,11 +94,7 @@ class InMemoryRedis:
     async def scan_iter(self, match: str | None = None) -> AsyncIterator[str]:
         async with self._lock:
             self._purge_expired()
-            keys = [
-                key
-                for key in self._values
-                if match is None or fnmatch.fnmatchcase(key, match)
-            ]
+            keys = [key for key in self._values if match is None or fnmatch.fnmatchcase(key, match)]
         for key in keys:
             yield key
 
@@ -120,8 +113,7 @@ async def get_redis() -> redis.Redis | InMemoryRedis:
             await asyncio.wait_for(client.ping(), timeout=1.0)
         except (ConnectionError, RedisTimeoutError, RedisError, asyncio.TimeoutError):
             logger.warning(
-                "Redis unavailable at %s; falling back to in-process store "
-                "(single-worker only)",
+                "Redis unavailable at %s; falling back to in-process store (single-worker only)",
                 settings.redis_url,
             )
             try:

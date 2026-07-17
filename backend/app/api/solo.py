@@ -51,7 +51,9 @@ def _make_validator(question: QuestionData) -> RoundValidator:
 
 def _purge_expired_sessions() -> None:
     cutoff = datetime.now(timezone.utc) - _SESSION_TTL
-    expired = [solo_id for solo_id, session in _solo_sessions.items() if session.created_at < cutoff]
+    expired = [
+        solo_id for solo_id, session in _solo_sessions.items() if session.created_at < cutoff
+    ]
     for solo_id in expired:
         _solo_sessions.pop(solo_id, None)
 
@@ -158,9 +160,7 @@ async def next_solo(
 
 
 @router.delete("/solo/{solo_id}")
-async def end_solo(
-    solo_id: str, current: TokenUser = Depends(get_current_user)
-) -> dict[str, bool]:
+async def end_solo(solo_id: str, current: TokenUser = Depends(get_current_user)) -> dict[str, bool]:
     _owned_session(solo_id, current)
     _solo_sessions.pop(solo_id, None)
     return {"ended": True}
