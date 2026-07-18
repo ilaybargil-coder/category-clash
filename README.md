@@ -125,7 +125,11 @@ backend/.venv/bin/python backend/scripts/generate_protocol_types.py
 | `DISCONNECT_FORFEIT_SECONDS` | 60 | זמן חסד לחזרה אחרי ניתוק לפני הפסד טכני |
 | `INVITE_TTL_SECONDS` | 90 | (שלב 2) תוקף הזמנה למשחק |
 | `SWAP_QUESTION_COST_COINS` | 50 | (שלב 3) עלות החלפת שאלה |
-| `FUZZY_MATCHING_ENABLED` | true | התאמה שמרנית לשגיאת הקלדה אחת, עם הגנת עמימות |
+| `FUZZY_MATCHING_ENABLED` | true | התאמה לשגיאות הקלדה, רק כאשר התשובה הקרובה אינה עמומה |
+| `FUZZY_MAX_DISTANCE` | 2 | מרחק עריכה מרבי; בפועל מוגבל ל־1 במילים קצרות מהסף |
+| `FUZZY_MIN_LENGTH` | 4 | אורך מינימלי להפעלת התאמת שגיאות |
+| `FUZZY_TWO_EDIT_MIN_LENGTH` | 7 | מאורך זה מותרות עד שתי פעולות עריכה |
+| `HEBREW_SKELETON_MATCHING_ENABLED` | true | קבלת וריאציות כתיב עבריות שמרניות, עם הגנת עמימות |
 | `UNIQUE_PREFIX_MATCHING_ENABLED` | true | השלמה רק כאשר הקידומת מצביעה על תשובה אחת בשאלה הנוכחית |
 | `UNIQUE_PREFIX_MIN_LENGTH` | 3 | מספר תווים מינימלי להפעלת השלמה |
 | `DEFINITE_ARTICLE_MATCHING_ENABLED` | true | קבלת ה״א הידיעה כאשר הצורה בלעדיה היא תשובה מדויקת |

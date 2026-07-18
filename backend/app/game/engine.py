@@ -60,8 +60,10 @@ class GameConfig:
     max_answer_length: int = 60
     disconnect_forfeit_seconds: float = 60.0
     fuzzy_matching_enabled: bool = False
-    fuzzy_max_distance: int = 1
+    fuzzy_max_distance: int = 2
     fuzzy_min_length: int = 4
+    fuzzy_two_edit_min_length: int = 7
+    hebrew_skeleton_matching_enabled: bool = False
     unique_prefix_matching_enabled: bool = True
     unique_prefix_min_length: int = 3
     definite_article_matching_enabled: bool = True
@@ -351,6 +353,8 @@ class GameRoom:
             fuzzy_enabled=self.config.fuzzy_matching_enabled,
             fuzzy_max_distance=self.config.fuzzy_max_distance,
             fuzzy_min_length=self.config.fuzzy_min_length,
+            fuzzy_two_edit_min_length=self.config.fuzzy_two_edit_min_length,
+            hebrew_skeleton_enabled=self.config.hebrew_skeleton_matching_enabled,
             unique_prefix_enabled=self.config.unique_prefix_matching_enabled,
             unique_prefix_min_length=self.config.unique_prefix_min_length,
             definite_article_enabled=self.config.definite_article_matching_enabled,
@@ -608,6 +612,8 @@ class GameRoom:
                     fuzzy_enabled=self.config.fuzzy_matching_enabled,
                     fuzzy_max_distance=self.config.fuzzy_max_distance,
                     fuzzy_min_length=self.config.fuzzy_min_length,
+                    fuzzy_two_edit_min_length=self.config.fuzzy_two_edit_min_length,
+                    hebrew_skeleton_enabled=self.config.hebrew_skeleton_matching_enabled,
                     unique_prefix_enabled=self.config.unique_prefix_matching_enabled,
                     unique_prefix_min_length=self.config.unique_prefix_min_length,
                     definite_article_enabled=self.config.definite_article_matching_enabled,
@@ -633,6 +639,7 @@ class GameRoom:
             self.powerups_used[user_id].add(name)
             status = PowerUpStatus.USED
             self._processed_powerups[(user_id, client_command_id)] = status
+            assert self.question is not None
             await self._emit(
                 "powerup_used",
                 user_id=user_id,

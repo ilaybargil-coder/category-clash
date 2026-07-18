@@ -2,8 +2,8 @@
 
 The validator is pure Python with no I/O so it is fast, deterministic and
 fully unit-testable. Exact canonical forms and aliases always win. Optional
-fuzzy matching only accepts one-edit mistakes when the match is unambiguous;
-short substitutions must also be between neighboring keyboard keys.
+spelling and fuzzy matching only accept a single approved answer; short typo
+substitutions must also be between neighboring keyboard keys.
 """
 
 from __future__ import annotations
@@ -27,14 +27,16 @@ class AnswerStatus(str, Enum):
 # Hebrew final letters -> regular form, so "אגוזין" == "אגוזים" style typos
 # in final position don't break matching.
 _FINAL_LETTERS = str.maketrans({"ך": "כ", "ם": "מ", "ן": "נ", "ף": "פ", "ץ": "צ"})
-# Hebrew cantillation + niqqud marks.
-_NIKUD_RE = re.compile(r"[֑-ׇ]")
+# Hebrew cantillation + niqqud marks, except the sin dot. Keeping that one mark
+# lets the skeleton distinguish explicit sin (שׂ) from ambiguous unpointed ש.
+_NIKUD_RE = re.compile(r"[\u0591-\u05c1\u05c3-\u05c7]")
 # Quote-like marks (geresh, gershayim, apostrophes) are removed entirely so
 # that "ליצ'י" == "ליצי"; all other punctuation becomes a space so that
 # "סוסון-ים" == "סוסון ים".
 _QUOTES_RE = re.compile(r"[׳״'\"`”“’‘]")
-_PUNCT_RE = re.compile(r"[^\w\s]|_")
+_PUNCT_RE = re.compile(r"[^\w\s\u05c2]|_")
 _WHITESPACE_RE = re.compile(r"\s+")
+_DOUBLED_MATRES_RE = re.compile(r"([וי])\1+")
 
 # Physical Hebrew keyboard positions. Final letters are normalized before
 # matching, so a letter can legitimately have more than one key position.
@@ -44,6 +46,21 @@ _HEBREW_KEY_ROWS = (
     "זסבהנמצתץ",
 )
 _ENGLISH_KEY_ROWS = ("qwertyuiop", "asdfghjkl", "zxcvbnm")
+
+# Conservative Hebrew sound/spelling folds. The explicit sin sequence is
+# handled before the single-character folds so ordinary ש is never folded.
+SKELETON_FOLDS: dict[str, str] = {
+    "ט": "ת",
+    "ת": "ת",
+    "כ": "כ",
+    "ק": "כ",
+    "ח": "כ",
+    "ס": "ס",
+    "שׂ": "ס",
+    "א": "א",
+    "ע": "א",
+    "ה": "א",
+}
 
 
 def _keyboard_positions() -> dict[str, list[tuple[int, float]]]:
@@ -71,6 +88,14 @@ def normalize_answer(text: str) -> str:
     return normalized
 
 
+def skeleton_form(normalized: str) -> str:
+    """Fold conservative Hebrew spelling variants into a stable skeleton."""
+
+    skeleton = _DOUBLED_MATRES_RE.sub(r"\1", normalized)
+    skeleton = skeleton.replace("שׂ", SKELETON_FOLDS["שׂ"])
+    return "".join(SKELETON_FOLDS.get(character, character) for character in skeleton)
+
+
 @dataclass(frozen=True)
 class ApprovedEntry:
     answer_id: int
@@ -83,14 +108,28 @@ class QuestionIndex:
 
     def __init__(self) -> None:
         self._by_form: dict[str, ApprovedEntry] = {}
+        self._by_skeleton: dict[str, set[int]] = {}
+        self._by_answer_id: dict[int, ApprovedEntry] = {}
 
     def add_form(self, form: str, entry: ApprovedEntry) -> None:
         key = normalize_answer(form)
-        if key and key not in self._by_form:
+        if not key:
+            return
+        if key not in self._by_form:
             self._by_form[key] = entry
+        self._by_answer_id.setdefault(entry.answer_id, entry)
+        self._by_skeleton.setdefault(skeleton_form(key), set()).add(entry.answer_id)
 
     def lookup(self, normalized: str) -> ApprovedEntry | None:
         return self._by_form.get(normalized)
+
+    def lookup_skeleton(self, normalized: str) -> ApprovedEntry | None:
+        """Resolve a spelling skeleton only when it identifies one answer."""
+
+        answer_ids = self._by_skeleton.get(skeleton_form(normalized), set())
+        if len(answer_ids) != 1:
+            return None
+        return self._by_answer_id[next(iter(answer_ids))]
 
     def lookup_unique_prefix(
         self,
@@ -126,18 +165,22 @@ class QuestionIndex:
         *,
         min_length: int,
         max_distance: int,
+        two_edit_min_length: int,
     ) -> ApprovedEntry | None:
-        """Return one unambiguous approved answer for a safe one-edit typo."""
+        """Return the uniquely closest approved answer for a safe typo."""
 
         compact_length = len(normalized.replace(" ", ""))
         if compact_length < min_length or max_distance < 1:
             return None
 
-        closest_distance = max_distance + 1
+        scaled_max_distance = 1 if compact_length < two_edit_min_length else 2
+        allowed_distance = min(max_distance, scaled_max_distance)
+
+        closest_distance = allowed_distance + 1
         matches: dict[int, ApprovedEntry] = {}
         for form, entry in self._by_form.items():
-            distance = _damerau_levenshtein(normalized, form, max_distance)
-            if distance > max_distance or not _safe_typo_pair(normalized, form):
+            distance = _damerau_levenshtein(normalized, form, allowed_distance)
+            if distance > allowed_distance or not _safe_typo_pair(normalized, form):
                 continue
             if distance < closest_distance:
                 closest_distance = distance
@@ -189,8 +232,10 @@ class RoundValidator:
         max_length: int = 60,
         *,
         fuzzy_enabled: bool = False,
-        fuzzy_max_distance: int = 1,
+        fuzzy_max_distance: int = 2,
         fuzzy_min_length: int = 4,
+        fuzzy_two_edit_min_length: int = 7,
+        hebrew_skeleton_enabled: bool = False,
         unique_prefix_enabled: bool = True,
         unique_prefix_min_length: int = 3,
         definite_article_enabled: bool = True,
@@ -200,6 +245,8 @@ class RoundValidator:
         self._fuzzy_enabled = fuzzy_enabled
         self._fuzzy_max_distance = fuzzy_max_distance
         self._fuzzy_min_length = fuzzy_min_length
+        self._fuzzy_two_edit_min_length = fuzzy_two_edit_min_length
+        self._hebrew_skeleton_enabled = hebrew_skeleton_enabled
         self._unique_prefix_enabled = unique_prefix_enabled
         self._unique_prefix_min_length = unique_prefix_min_length
         self._definite_article_enabled = definite_article_enabled
@@ -225,11 +272,14 @@ class RoundValidator:
                 normalized,
                 min_length=self._unique_prefix_min_length,
             )
+        if entry is None and self._hebrew_skeleton_enabled:
+            entry = self._index.lookup_skeleton(normalized)
         if entry is None and self._fuzzy_enabled:
             entry = self._index.lookup_typo(
                 normalized,
                 min_length=self._fuzzy_min_length,
                 max_distance=self._fuzzy_max_distance,
+                two_edit_min_length=self._fuzzy_two_edit_min_length,
             )
         if entry is None:
             return ValidationResult(AnswerStatus.INVALID, None, normalized)
@@ -307,12 +357,15 @@ def _safe_typo_pair(typed: str, approved: str) -> bool:
             return True
         if len(mismatches) == 2:
             first, second = mismatches
-            return (
+            if (
                 second == first + 1
                 and typed[first] == approved[second]
                 and typed[second] == approved[first]
-            )
-        return False
+            ):
+                return True
+        # Once both forms are longer than the risky short-word range, the
+        # bounded edit distance is the safety rule.
+        return min(len(typed.replace(" ", "")), len(approved.replace(" ", ""))) >= 5
 
     # Missing/extra letters are common, but too risky for words of four or
     # fewer letters (for example, one short real word becoming another).
