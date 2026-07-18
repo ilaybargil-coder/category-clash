@@ -3,14 +3,24 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useGameSocket } from "@/hooks/useGameSocket";
+import { useViewportHeight } from "@/hooks/useViewportHeight";
 import { BrandMark, UserAvatar } from "./VisualShell";
 import AnswerFeed from "./AnswerFeed";
 import TimerBar from "./TimerBar";
 import type { GameState, PlayerInfo } from "@/lib/types";
 
 export default function GameRoom({ code }: { code: string }) {
-  const { state, status, rejection, clearRejection, submitAnswer, usePowerup: triggerPowerup } =
-    useGameSocket(code);
+  useViewportHeight();
+
+  const {
+    state,
+    stateSyncRevision,
+    status,
+    rejection,
+    clearRejection,
+    submitAnswer,
+    usePowerup: triggerPowerup,
+  } = useGameSocket(code);
 
   if (status === "unauthorized") {
     return (
@@ -61,6 +71,7 @@ export default function GameRoom({ code }: { code: string }) {
   return (
     <GameView
       state={state}
+      stateSyncRevision={stateSyncRevision}
       reconnecting={status !== "open"}
       rejection={rejection}
       clearRejection={clearRejection}
@@ -90,6 +101,7 @@ function CenteredNote({
 
 function GameView({
   state,
+  stateSyncRevision,
   reconnecting,
   rejection,
   clearRejection,
@@ -97,6 +109,7 @@ function GameView({
   triggerPowerup,
 }: {
   state: GameState;
+  stateSyncRevision: number;
   reconnecting: boolean;
   rejection: string | null;
   clearRejection: () => void;
@@ -114,7 +127,15 @@ function GameView({
   };
 
   const [draft, setDraft] = useState("");
+  const [optimisticPowerups, setOptimisticPowerups] = useState<{
+    stateSyncRevision: number;
+    used: Set<PowerupType>;
+  }>(() => ({ stateSyncRevision, used: new Set() }));
   const inputRef = useRef<HTMLInputElement>(null);
+  const optimisticallyUsed =
+    optimisticPowerups.stateSyncRevision === stateSyncRevision
+      ? optimisticPowerups.used
+      : null;
 
   useEffect(() => {
     if (myTurn) inputRef.current?.focus();
@@ -132,16 +153,34 @@ function GameView({
     e.preventDefault();
     const text = draft.trim();
     if (!text || !myTurn) return;
-    if (submitAnswer(text)) setDraft("");
+    if (submitAnswer(text)) {
+      setDraft("");
+      inputRef.current?.focus({ preventScroll: true });
+    }
+  }
+
+  function onPowerup(type: PowerupType) {
+    if (!triggerPowerup(type)) return;
+    setOptimisticPowerups((current) => {
+      const used =
+        current.stateSyncRevision === stateSyncRevision
+          ? new Set(current.used)
+          : new Set<PowerupType>();
+      used.add(type);
+      return { stateSyncRevision, used };
+    });
   }
 
   const pointsOf = (userId?: number) =>
     state.score.find((s) => s.user_id === userId)?.points ?? 0;
 
   return (
-    <main className="app-background min-h-dvh p-2 sm:p-4">
-      <div className="mx-auto flex min-h-[calc(100dvh-1rem)] max-w-[1280px] flex-col sm:min-h-[calc(100dvh-2rem)]">
-        <header className="mb-2 flex items-center justify-between px-2 py-1 lg:mb-3">
+    <main
+      className="app-background overflow-hidden p-2 sm:p-4"
+      style={{ height: "var(--app-vh, 100dvh)" }}
+    >
+      <div className="mx-auto flex h-full min-h-0 max-w-[1280px] flex-col">
+        <header className="mb-2 flex shrink-0 items-center justify-between px-2 py-1 lg:mb-3">
           <BrandMark compact />
           <div className="flex items-center gap-2 text-[11px] text-slate-500">
             <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 font-mono tracking-wider">
@@ -161,7 +200,7 @@ function GameView({
           />
 
           <div className="surface-panel flex min-h-0 flex-col overflow-hidden rounded-2xl">
-            <div className="flex items-center justify-between border-b border-white/10 px-4 py-2.5 text-xs text-slate-500 lg:justify-center">
+            <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-4 py-2.5 text-xs text-slate-500 lg:justify-center">
               <span className="lg:absolute lg:right-8">סיבוב {state.round_no || "-"}</span>
               <span className="rounded-full bg-black/25 px-4 py-1 font-bold text-slate-300">
                 הטוב מ־{state.rounds_to_win * 2 - 1}
@@ -169,13 +208,13 @@ function GameView({
               <span className="lg:hidden">עד {state.rounds_to_win} ניצחונות</span>
             </div>
 
-            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 py-3 lg:hidden">
+            <div className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 py-3 lg:hidden">
               <PlayerBadge player={me} points={pointsOf(me?.user_id)} isYou />
               <span className="text-sm font-black text-slate-600">VS</span>
               <PlayerBadge player={opponent} points={pointsOf(opponent?.user_id)} />
             </div>
 
-            <section className="mx-3 rounded-xl bg-[#f7f0df] px-4 py-3 text-center text-slate-900 shadow-[0_8px_30px_rgba(0,0,0,0.22)] sm:mx-5 sm:px-7 sm:py-4">
+            <section className="mx-3 shrink-0 rounded-xl bg-[#f7f0df] px-4 py-3 text-center text-slate-900 shadow-[0_8px_30px_rgba(0,0,0,0.22)] sm:mx-5 sm:px-7 sm:py-4">
               <p className="text-[10px] font-bold text-slate-500 sm:text-xs">קטגוריה</p>
               <h1 className="mt-1 min-h-12 text-lg font-black leading-snug sm:text-2xl">
                 {state.question?.text ?? "ממתינים לשאלה..."}
@@ -204,7 +243,7 @@ function GameView({
               </p>
             </section>
 
-            <div className="mt-3 space-y-1">
+            <div className="mt-3 shrink-0 space-y-1">
               {reconnecting && (
                 <StatusBanner tone="amber">החיבור נותק — מתחברים מחדש…</StatusBanner>
               )}
@@ -220,15 +259,15 @@ function GameView({
 
             <AnswerFeed answers={state.answers} myUserId={state.you} players={state.players} />
 
-            <div className="grid grid-cols-3 gap-2 border-t border-white/10 px-3 py-2 sm:px-5">
-              <PowerButton label="🔄 החלפה" available={myPowerups.swap_question} disabled={state.answers.length > 0 || !["QUESTION_PREVIEW", "ROUND_ACTIVE"].includes(state.phase)} onClick={() => triggerPowerup("swap_question")} />
-              <PowerButton label="⏱️ הארכה" available={myPowerups.extend_time} disabled={!myTurn} onClick={() => triggerPowerup("extend_time")} />
-              <PowerButton label="🃏 ג׳וקר" available={myPowerups.joker} disabled={!myTurn} onClick={() => triggerPowerup("use_joker")} />
+            <div className="grid shrink-0 grid-cols-3 gap-2 border-t border-white/10 px-3 py-2 sm:px-5">
+              <PowerButton label="🔄 החלפה" available={myPowerups.swap_question && !optimisticallyUsed?.has("swap_question")} disabled={state.answers.length > 0 || !["QUESTION_PREVIEW", "ROUND_ACTIVE"].includes(state.phase)} onClick={() => onPowerup("swap_question")} />
+              <PowerButton label="⏱️ הארכה" available={myPowerups.extend_time && !optimisticallyUsed?.has("extend_time")} disabled={!myTurn} onClick={() => onPowerup("extend_time")} />
+              <PowerButton label="🃏 ג׳וקר" available={myPowerups.joker && !optimisticallyUsed?.has("use_joker")} disabled={!myTurn} onClick={() => onPowerup("use_joker")} />
             </div>
 
             <form
               onSubmit={onSubmit}
-              className="flex gap-2 border-t border-white/10 bg-black/20 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5"
+              className="flex shrink-0 gap-2 border-t border-white/10 bg-black/20 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5"
             >
               <input
                 ref={inputRef}
@@ -243,7 +282,7 @@ function GameView({
                 type="submit"
                 aria-label="שליחת תשובה"
                 disabled={!myTurn || !draft.trim()}
-                className="primary-button grid w-12 place-items-center text-xl sm:w-auto sm:min-w-28 sm:px-6"
+                className="primary-button grid w-12 touch-manipulation place-items-center text-xl transition-transform duration-75 active:scale-95 sm:w-auto sm:min-w-28 sm:px-6"
               >
                 <span className="sm:hidden">➤</span>
                 <span className="hidden sm:inline">שליחה</span>
@@ -278,9 +317,11 @@ function GameView({
   );
 }
 
+type PowerupType = "swap_question" | "extend_time" | "use_joker";
+
 function PowerButton({ label, available, disabled, onClick }: { label: string; available: boolean; disabled: boolean; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} disabled={!available || disabled} className="rounded-lg border border-violet-400/20 bg-violet-500/10 px-2 py-2 text-xs font-bold text-violet-200 disabled:cursor-not-allowed disabled:opacity-30">
+    <button type="button" onClick={onClick} disabled={!available || disabled} className="touch-manipulation rounded-lg border border-violet-400/20 bg-violet-500/10 px-2 py-2 text-xs font-bold text-violet-200 transition-transform duration-75 active:scale-95 disabled:cursor-not-allowed disabled:opacity-30">
       {label}{!available && " ✓"}
     </button>
   );

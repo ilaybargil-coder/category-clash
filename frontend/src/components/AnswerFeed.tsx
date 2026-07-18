@@ -32,17 +32,21 @@ interface Props {
 }
 
 export default function AnswerFeed({ answers, myUserId, players }: Props) {
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const feedRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    const feed = feedRef.current;
+    if (feed) feed.scrollTop = feed.scrollHeight;
   }, [answers.length]);
 
   const nameOf = (userId: number) =>
     players.find((p) => p.user_id === userId)?.display_name ?? "";
 
   return (
-    <div className="answer-feed flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3 py-4 sm:px-5">
+    <div
+      ref={feedRef}
+      className="answer-feed flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3 py-4 sm:px-5"
+    >
       {answers.length === 0 && (
         <div className="my-auto text-center">
           <div className="mx-auto grid h-12 w-12 place-items-center rounded-full border border-white/10 bg-white/[0.025] text-xl text-slate-500">
@@ -97,7 +101,6 @@ export default function AnswerFeed({ answers, myUserId, players }: Props) {
           </div>
         );
       })}
-      <div ref={bottomRef} />
     </div>
   );
 }

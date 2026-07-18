@@ -16,6 +16,11 @@
     --cream: #f7f0df;
   }
 
+  html,
+  body {
+    overscroll-behavior: none;
+  }
+
   html {
     -webkit-tap-highlight-color: transparent;
     background: var(--app-bg);
@@ -244,6 +249,7 @@
     background: rgba(3, 8, 13, 0.7);
     padding: 0.85rem 1rem;
     color: white;
+    font-size: 1rem;
     outline: none;
     transition: border-color 160ms ease, box-shadow 160ms ease;
   }
