@@ -73,6 +73,30 @@ class Question(Base):
     )
 
 
+class AnswerReport(Base):
+    __tablename__ = "answer_reports"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('pending', 'accepted', 'rejected')",
+            name="ck_answer_reports_status",
+        ),
+        UniqueConstraint(
+            "question_id",
+            "normalized",
+            "reporter_user_id",
+            name="uq_answer_reports_question_normalized_reporter",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    question_id: Mapped[int] = mapped_column(ForeignKey("questions.id", ondelete="CASCADE"))
+    raw_text: Mapped[str] = mapped_column(String(200))
+    normalized: Mapped[str] = mapped_column(String(200))
+    reporter_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    status: Mapped[str] = mapped_column(String(20), default="pending", server_default="pending")
+
+
 class ApprovedAnswer(Base):
     __tablename__ = "approved_answers"
     __table_args__ = (UniqueConstraint("question_id", "canonical"),)
