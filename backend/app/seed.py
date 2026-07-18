@@ -45,6 +45,12 @@ from .question_bank_expansion_v6 import (
 from .question_bank_expansion_v6 import (
     EXPANSION_V6,
 )
+from .question_bank_expansion_v7 import (
+    CURATION_SOURCES as CURATION_SOURCES_V7,
+)
+from .question_bank_expansion_v7 import (
+    EXPANSION_V7,
+)
 
 # The V3 governance test audits the current QUESTIONS collection through the
 # V3 registries. Register later closed-set questions there without copying any
@@ -67,6 +73,12 @@ for v5_question_text, v5_sources in CURATION_SOURCES_V5.items():
 for v6_question_text, v6_sources in CURATION_SOURCES_V6.items():
     ANSWER_ALIAS_ADDITIONS_V3.setdefault(v6_question_text, {})
     QUESTION_EXPANSION_SOURCES_V3.setdefault(v6_question_text, v6_sources)
+
+# V7 deepens existing open categories and refreshes their source records while
+# preserving the V3 registry as the single all-question governance inventory.
+for v7_question_text, v7_sources in CURATION_SOURCES_V7.items():
+    ANSWER_ALIAS_ADDITIONS_V3.setdefault(v7_question_text, {})
+    QUESTION_EXPANSION_SOURCES_V3.setdefault(v7_question_text, v7_sources)
 
 DEMO_PASSWORD = "demo1234"
 
@@ -347,6 +359,20 @@ for question in QUESTIONS:
             copied_aliases = list(aliases)
             question["answers"].append((canonical, copied_aliases, group))
             answers_by_canonical_v6[canonical] = copied_aliases
+            continue
+        for alias in aliases:
+            if alias != canonical and alias not in target:
+                target.append(alias)
+
+    answers_by_canonical_v7 = {
+        canonical: aliases for canonical, aliases, _group in question["answers"]
+    }
+    for canonical, aliases, group in EXPANSION_V7.get(question["text"], []):
+        target = answers_by_canonical_v7.get(canonical)
+        if target is None:
+            copied_aliases = list(aliases)
+            question["answers"].append((canonical, copied_aliases, group))
+            answers_by_canonical_v7[canonical] = copied_aliases
             continue
         for alias in aliases:
             if alias != canonical and alias not in target:
