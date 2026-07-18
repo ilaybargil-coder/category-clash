@@ -40,6 +40,7 @@ export default function SoloPage() {
   const [totalFound, setTotalFound] = useState(0);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const startedRef = useRef(false);
   const revealingRef = useRef(false);
   const feedbackId = useRef(0);
@@ -112,6 +113,7 @@ export default function SoloPage() {
         setSecondsLeft(TURN_SECONDS);
       }
       setDraft("");
+      requestAnimationFrame(() => inputRef.current?.focus({ preventScroll: true }));
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : "שליחת התשובה נכשלה");
     } finally {
@@ -132,6 +134,7 @@ export default function SoloPage() {
       setDraft("");
       setSecondsLeft(TURN_SECONDS);
       setQuestionsPlayed((value) => value + 1);
+      requestAnimationFrame(() => inputRef.current?.focus({ preventScroll: true }));
     } catch (cause) {
       if (cause instanceof ApiError && cause.status === 409) {
         setMessage("סיימת את כל מאגר השאלות — כל הכבוד!");
@@ -215,7 +218,7 @@ export default function SoloPage() {
       {!revealed ? (
         <div className="shrink-0 border-t border-white/10 bg-black/20 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <form onSubmit={onSubmit} className="flex gap-2">
-            <input autoFocus value={draft} onChange={(event) => setDraft(event.target.value)} disabled={busy} maxLength={60} placeholder="כתבו תשובה…" className="dark-input min-w-0 flex-1 py-2.5" />
+            <input ref={inputRef} autoFocus value={draft} onChange={(event) => setDraft(event.target.value)} disabled={busy} maxLength={60} placeholder="כתבו תשובה…" className="dark-input min-w-0 flex-1 py-2.5" />
             <button disabled={busy || !draft.trim()} className="primary-button px-6 disabled:opacity-40">שליחה</button>
           </form>
           <button onClick={() => void onReveal()} disabled={busy} className="mt-3 w-full py-2 text-sm font-bold text-slate-500 disabled:opacity-40">סיימתי / חשיפת תשובות</button>
