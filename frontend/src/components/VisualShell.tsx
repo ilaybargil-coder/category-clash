@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { SessionUser } from "@/lib/types";
 
 export type DashboardView =
@@ -8,15 +9,6 @@ export type DashboardView =
   | "friends"
   | "stats"
   | "settings";
-
-export interface PlayerProgress {
-  games: number;
-  accuracy: number;
-  level: number;
-  xpInLevel: number;
-  xpNeeded: number;
-  rank: "Bronze" | "Silver" | "Gold";
-}
 
 const NAV_ITEMS: Array<{
   id: DashboardView;
@@ -29,15 +21,6 @@ const NAV_ITEMS: Array<{
   { id: "friends", label: "חברים", shortLabel: "חברים", icon: "♙" },
   { id: "stats", label: "סטטיסטיקות", shortLabel: "נתונים", icon: "◫" },
   { id: "settings", label: "הגדרות", shortLabel: "הגדרות", icon: "⚙" },
-];
-
-// TODO: real progression backend
-const LEADERBOARD = [
-  { rank: 1, name: "נועה האלופה", xp: 4850 },
-  { rank: 2, name: "מלך המילים", xp: 4620 },
-  { rank: 3, name: "שירז", xp: 4310 },
-  { rank: 4, name: "Flash77", xp: 3980 },
-  { rank: 5, name: "מוח כריש", xp: 3740 },
 ];
 
 export function BrandMark({ compact = false }: { compact?: boolean }) {
@@ -85,33 +68,19 @@ export function CoinPill({ coins }: { coins: number }) {
 
 export function DesktopSidebar({
   user,
-  progress,
   activeView,
   onNavigate,
 }: {
   user: SessionUser;
-  progress: PlayerProgress;
   activeView: DashboardView;
   onNavigate: (view: DashboardView) => void;
 }) {
-  const xpPercent = (progress.xpInLevel / progress.xpNeeded) * 100;
-
   return (
     <aside className="dashboard-left desktop-sidebar surface-panel" dir="rtl">
       <section className="sidebar-player-card">
-        <div className="sidebar-player-card__top">
-          <UserAvatar name={user.display_name} online size="lg" />
-          <span className="level-badge">רמה {progress.level}</span>
-        </div>
+        <UserAvatar name={user.display_name} online size="lg" />
         <h2>{user.display_name}</h2>
         <p dir="ltr">@{user.username}</p>
-        <div className="sidebar-xp-copy">
-          <span>התקדמות לרמה הבאה</span>
-          <b>{progress.xpInLevel}/{progress.xpNeeded} XP</b>
-        </div>
-        <div className="level-track" aria-label={`${progress.xpInLevel} מתוך ${progress.xpNeeded} נקודות ניסיון`}>
-          <span style={{ width: `${xpPercent}%` }} />
-        </div>
         <CoinPill coins={user.coins} />
       </section>
 
@@ -132,40 +101,7 @@ export function DesktopSidebar({
         ))}
       </nav>
 
-      <section className="premium-card">
-        <span aria-hidden="true">✦</span>
-        <p>פתחו עוד אתגרים</p>
-        <h3>שדרגו לפרימיום</h3>
-        <button type="button">לפרטים נוספים</button>
-      </section>
     </aside>
-  );
-}
-
-function LeaderboardWidget() {
-  return (
-    <section className="dashboard-widget">
-      <div className="widget-heading">
-        <div>
-          <span>הדירוג השבועי</span>
-          <h2>טבלת מובילים</h2>
-        </div>
-        <b>🏆</b>
-      </div>
-      <ol className="leaderboard-list">
-        {LEADERBOARD.map((player) => (
-          <li key={player.rank}>
-            <span className={`leaderboard-rank leaderboard-rank--${player.rank}`}>
-              {player.rank}
-            </span>
-            <UserAvatar name={player.name} size="sm" />
-            <span className="leaderboard-name">{player.name}</span>
-            <b>{player.xp.toLocaleString("he-IL")} XP</b>
-          </li>
-        ))}
-      </ol>
-      <button type="button" className="widget-link">לכל הדירוגים ←</button>
-    </section>
   );
 }
 
@@ -175,13 +111,8 @@ function DailyChallengeWidget() {
       <div className="daily-widget__icon" aria-hidden="true">⚡</div>
       <div className="min-w-0 flex-1">
         <span>האתגר היומי</span>
-        <h2>שליטה בקטגוריות</h2>
-        <div className="daily-progress-copy">
-          <span>3 מתוך 5 סיבובים</span>
-          <b>60%</b>
-        </div>
-        <div className="level-track"><span style={{ width: "60%" }} /></div>
-        <p>השלימו וקבלו <strong>150 ●</strong></p>
+        <h2>מוכנים לאתגר של היום?</h2>
+        <Link href="/daily" className="daily-widget__link">לאתגר היומי ←</Link>
       </div>
     </section>
   );
@@ -190,7 +121,6 @@ function DailyChallengeWidget() {
 export function DashboardWidgets() {
   return (
     <div className="dashboard-widgets">
-      <LeaderboardWidget />
       <DailyChallengeWidget />
     </div>
   );
@@ -198,10 +128,8 @@ export function DashboardWidgets() {
 
 export function RightSidebar({
   user,
-  progress,
 }: {
   user: SessionUser;
-  progress: PlayerProgress;
 }) {
   return (
     <aside className="dashboard-right" dir="rtl">
@@ -210,7 +138,7 @@ export function RightSidebar({
         <UserAvatar name={user.display_name} online size="md" />
         <div className="min-w-0 flex-1">
           <strong>{user.display_name}</strong>
-          <span>{progress.rank} · רמה {progress.level}</span>
+          <span dir="ltr">@{user.username}</span>
         </div>
         <CoinPill coins={user.coins} />
       </section>

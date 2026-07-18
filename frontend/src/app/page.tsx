@@ -15,7 +15,6 @@ import {
   RightSidebar,
   UserAvatar,
   type DashboardView,
-  type PlayerProgress,
 } from "@/components/VisualShell";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { useViewportHeight } from "@/hooks/useViewportHeight";
@@ -32,40 +31,31 @@ import {
 } from "@/lib/supabase";
 import type { DemoSession, SessionUser } from "@/lib/types";
 
-// TODO: real progression backend
-const WIN_STREAK = 7;
-// TODO: real progression backend
-const GLOBAL_RANK = "#532";
-// TODO: real progression backend
-const WEEKLY_DELTAS = ["השבוע +5", "השבוע +4", "השבוע +1", "השבוע +3%"];
+interface UserStats {
+  games: number;
+  accuracy: number;
+}
 
-function getPlayerProgress(user: SessionUser): PlayerProgress {
+function getUserStats(user: SessionUser): UserStats {
   const games = user.wins + user.losses;
-  const accuracy = Math.round((user.wins / games) * 100) || 0;
   return {
     games,
-    accuracy,
-    level: Math.floor(games / 5) + 1,
-    xpInLevel: games % 5,
-    xpNeeded: 5,
-    rank: user.wins < 5 ? "Bronze" : user.wins < 15 ? "Silver" : "Gold",
+    accuracy: games > 0 ? Math.round((user.wins / games) * 100) : 0,
   };
 }
 
 function HomeView({
   user,
-  progress,
+  stats,
   onNavigate,
 }: {
   user: SessionUser;
-  progress: PlayerProgress;
+  stats: UserStats;
   onNavigate: (view: DashboardView) => void;
 }) {
   const router = useRouter();
   const [creating, setCreating] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const inviteCode = `CC${user.id.toString(36).toUpperCase().padStart(4, "0")}`;
 
   async function createGame() {
     setCreating(true);
@@ -79,26 +69,12 @@ function HomeView({
     }
   }
 
-  async function copyInviteCode() {
-    try {
-      await navigator.clipboard.writeText(inviteCode);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1800);
-    } catch {
-      setCopied(false);
-    }
-  }
-
   return (
     <div className="dashboard-view home-view">
       <header className="view-greeting">
         <div>
           <span>מוכנים לסיבוב הבא?</span>
           <h1>שלום {user.display_name}! 👋</h1>
-        </div>
-        <div className="view-greeting__rank">
-          <small>הדירוג העולמי שלך</small>
-          <strong>{GLOBAL_RANK}</strong>
         </div>
       </header>
 
@@ -111,24 +87,19 @@ function HomeView({
             priority
             sizes="(max-width: 1023px) 100vw, 36vw"
           />
-          <div className="hero-art-badge"><span>🔥</span> רצף של {WIN_STREAK} ניצחונות</div>
         </div>
 
         <div className="dashboard-hero__content">
-          <div className="hero-eyebrow">
-            <span className={`rank-gem rank-gem--${progress.rank.toLowerCase()}`}>◆</span>
-            <div><small>הליגה הנוכחית</small><strong>{progress.rank}</strong></div>
-          </div>
           <div className="hero-main-stats">
             <div
               className="accuracy-ring"
-              style={{ "--accuracy": `${progress.accuracy * 3.6}deg` } as React.CSSProperties}
-              aria-label={`${progress.accuracy} אחוז דיוק`}
+              style={{ "--accuracy": `${stats.accuracy * 3.6}deg` } as React.CSSProperties}
+              aria-label={`${stats.accuracy} אחוז דיוק`}
             >
-              <span><b>{progress.accuracy}%</b><small>דיוק</small></span>
+              <span><b>{stats.accuracy}%</b><small>דיוק</small></span>
             </div>
             <div className="hero-record">
-              <div><b>{progress.games}</b><span>משחקים</span></div>
+              <div><b>{stats.games}</b><span>משחקים</span></div>
               <div><b>{user.wins}</b><span>נצחונות</span></div>
               <div><b>{user.losses}</b><span>הפסדים</span></div>
             </div>
@@ -145,49 +116,28 @@ function HomeView({
         </div>
       </section>
 
-      <section className="invite-panel surface-panel">
-        <div className="invite-copy">
-          <span className="invite-copy__icon" aria-hidden="true">✦</span>
-          <div>
-            <small>קוד ההזמנה האישי שלך</small>
-            <h2>הזמינו חברים לקרב</h2>
-            <p>שתפו את הקוד או סרקו אותו מהמסך.</p>
-          </div>
-        </div>
-        <div className="invite-code" dir="ltr">
-          <strong>{inviteCode}</strong>
-          <button type="button" onClick={() => void copyInviteCode()} aria-label="העתקת קוד הזמנה">
-            {copied ? "הועתק ✓" : "העתקה"}
-          </button>
-        </div>
-        <div className="qr-placeholder" aria-label="מקום לקוד QR">
-          <span>QR</span>
-        </div>
-      </section>
-
-      <StatsStrip user={user} progress={progress} />
+      <StatsStrip user={user} stats={stats} />
       <DashboardFriendsCarousel onOpenFriends={() => onNavigate("friends")} />
       <div className="mobile-home-widgets"><DashboardWidgets /></div>
     </div>
   );
 }
 
-function StatsStrip({ user, progress }: { user: SessionUser; progress: PlayerProgress }) {
-  const stats = [
-    { label: "משחקים", value: progress.games, icon: "🎮", delta: WEEKLY_DELTAS[0] },
-    { label: "נצחונות", value: user.wins, icon: "🏆", delta: WEEKLY_DELTAS[1] },
-    { label: "הפסדים", value: user.losses, icon: "◌", delta: WEEKLY_DELTAS[2] },
-    { label: "דיוק", value: `${progress.accuracy}%`, icon: "◎", delta: WEEKLY_DELTAS[3] },
+function StatsStrip({ user, stats }: { user: SessionUser; stats: UserStats }) {
+  const statItems = [
+    { label: "משחקים", value: stats.games, icon: "🎮" },
+    { label: "נצחונות", value: user.wins, icon: "🏆" },
+    { label: "הפסדים", value: user.losses, icon: "◌" },
+    { label: "דיוק", value: `${stats.accuracy}%`, icon: "◎" },
   ];
 
   return (
     <section className="dashboard-stat-grid" aria-label="סיכום סטטיסטיקות">
-      {stats.map((stat) => (
+      {statItems.map((stat) => (
         <article key={stat.label} className="dashboard-stat-card surface-panel">
           <span className="stat-icon">{stat.icon}</span>
           <small>{stat.label}</small>
           <strong>{stat.value}</strong>
-          <p>{stat.delta} <span>↗</span></p>
         </article>
       ))}
     </section>
@@ -233,7 +183,7 @@ function GameActions({ user }: { user: SessionUser }) {
           <p>הקלידו את קוד החדר בן חמשת התווים.</p>
         </div>
         <form onSubmit={joinGame}>
-          <input value={joinCode} onChange={(event) => setJoinCode(event.target.value)} placeholder="7GX2Q" aria-label="קוד חדר" dir="ltr" maxLength={5} className="dark-input" />
+          <input value={joinCode} onChange={(event) => setJoinCode(event.target.value)} placeholder="קוד חדר" aria-label="קוד חדר" dir="ltr" maxLength={5} className="dark-input" />
           <button type="submit" disabled={!joinCode.trim()} className="primary-button">הצטרפות</button>
         </form>
       </section>
@@ -272,60 +222,35 @@ function GameModeCard({
   );
 }
 
-function StatsView({ user, progress }: { user: SessionUser; progress: PlayerProgress }) {
-  const winWidth = progress.games ? (user.wins / progress.games) * 100 : 0;
-  const lossWidth = progress.games ? (user.losses / progress.games) * 100 : 0;
+function StatsView({ user, stats }: { user: SessionUser; stats: UserStats }) {
+  const winWidth = stats.games ? (user.wins / stats.games) * 100 : 0;
+  const lossWidth = stats.games ? (user.losses / stats.games) * 100 : 0;
   return (
     <div className="dashboard-view">
-      <ViewHeading eyebrow="המספרים שלך" title="סטטיסטיקות ביצועים" description="כל ההישגים מהמשחקים ששוחקו בחשבון הזה." />
-      <StatsStrip user={user} progress={progress} />
-      <section className="stats-detail-grid">
-        <article className="surface-panel performance-panel">
-          <div className="section-heading"><div><span>מאזן כולל</span><h2>נצחונות מול הפסדים</h2></div><b>{progress.accuracy}%</b></div>
-          <div className="performance-row"><span>נצחונות</span><div><i style={{ width: `${winWidth}%` }} /></div><b>{user.wins}</b></div>
-          <div className="performance-row performance-row--loss"><span>הפסדים</span><div><i style={{ width: `${lossWidth}%` }} /></div><b>{user.losses}</b></div>
-          <p>עוד {progress.xpNeeded - progress.xpInLevel} משחקים עד רמה {progress.level + 1}</p>
-        </article>
-        <article className="surface-panel rank-panel">
-          <span className={`rank-gem rank-gem--${progress.rank.toLowerCase()}`}>◆</span>
-          <small>הדרגה הנוכחית</small>
-          <h2>{progress.rank}</h2>
-          <p>דירוג עולמי <b>{GLOBAL_RANK}</b></p>
-          <div className="level-track"><span style={{ width: `${(progress.xpInLevel / progress.xpNeeded) * 100}%` }} /></div>
-        </article>
-      </section>
+      <ViewHeading eyebrow="המספרים שלך" title="סטטיסטיקות ביצועים" description="נתוני המשחקים ששוחקו בחשבון הזה." />
+      <StatsStrip user={user} stats={stats} />
+      <article className="surface-panel performance-panel">
+        <div className="section-heading"><div><span>מאזן כולל</span><h2>נצחונות מול הפסדים</h2></div><b>{stats.accuracy}%</b></div>
+        <div className="performance-row"><span>נצחונות</span><div><i style={{ width: `${winWidth}%` }} /></div><b>{user.wins}</b></div>
+        <div className="performance-row performance-row--loss"><span>הפסדים</span><div><i style={{ width: `${lossWidth}%` }} /></div><b>{user.losses}</b></div>
+      </article>
     </div>
   );
 }
 
 function SettingsView({ user, onSignOut }: { user: SessionUser; onSignOut: () => void | Promise<void> }) {
-  const [sounds, setSounds] = useState(true);
-  const [notifications, setNotifications] = useState(true);
   return (
     <div className="dashboard-view">
-      <ViewHeading eyebrow="החשבון שלך" title="הגדרות" description="התאימו את חוויית המשחק בדיוק בשבילכם." />
+      <ViewHeading eyebrow="החשבון שלך" title="הגדרות" description="פרטי החשבון ופעולות זמינות." />
       <section className="settings-panel surface-panel">
         <div className="settings-profile">
           <UserAvatar name={user.display_name} online size="lg" />
           <div><h2>{user.display_name}</h2><p dir="ltr">@{user.username}</p></div>
           <CoinPill coins={user.coins} />
         </div>
-        <SettingToggle title="צלילי משחק" description="אפקטים קוליים במהלך הקרב" checked={sounds} onChange={setSounds} />
-        <SettingToggle title="התראות" description="בקשות חברות והזמנות למשחק" checked={notifications} onChange={setNotifications} />
-        <div className="settings-row"><div><strong>שפה</strong><span>שפת הממשק</span></div><b>עברית</b></div>
         <button type="button" onClick={() => void onSignOut()} className="sign-out-button">התנתקות מהחשבון</button>
       </section>
     </div>
-  );
-}
-
-function SettingToggle({ title, description, checked, onChange }: { title: string; description: string; checked: boolean; onChange: (checked: boolean) => void }) {
-  return (
-    <label className="settings-row">
-      <div><strong>{title}</strong><span>{description}</span></div>
-      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
-      <i aria-hidden="true"><span /></i>
-    </label>
   );
 }
 
@@ -342,7 +267,7 @@ function ViewHeading({ eyebrow, title, description }: { eyebrow: string; title: 
 function LobbyDashboard({ user, onSignOut }: { user: SessionUser; onSignOut: () => void | Promise<void> }) {
   useViewportHeight();
   const [activeView, setActiveView] = useState<DashboardView>("home");
-  const progress = getPlayerProgress(user);
+  const stats = getUserStats(user);
 
   function navigate(view: DashboardView) {
     setActiveView(view);
@@ -352,27 +277,27 @@ function LobbyDashboard({ user, onSignOut }: { user: SessionUser; onSignOut: () 
   return (
     <main className="app-background lobby-dashboard" style={{ minHeight: "var(--app-vh, 100dvh)" }}>
       <div className="dashboard-grid">
-        <DesktopSidebar user={user} progress={progress} activeView={activeView} onNavigate={navigate} />
+        <DesktopSidebar user={user} activeView={activeView} onNavigate={navigate} />
         <section className="dashboard-center" dir="rtl">
           <header className="dashboard-mobile-header surface-panel">
             <BrandMark compact />
             <div><CoinPill coins={user.coins} /><UserAvatar name={user.display_name} online size="sm" /></div>
           </header>
-          {activeView === "home" && <HomeView user={user} progress={progress} onNavigate={navigate} />}
+          {activeView === "home" && <HomeView user={user} stats={stats} onNavigate={navigate} />}
           {activeView === "games" && <GameActions user={user} />}
           {activeView === "friends" && <div className="dashboard-view"><FriendsPanel key={user.id} /></div>}
-          {activeView === "stats" && <StatsView user={user} progress={progress} />}
+          {activeView === "stats" && <StatsView user={user} stats={stats} />}
           {activeView === "settings" && <SettingsView user={user} onSignOut={onSignOut} />}
         </section>
-        <ProfilePanel user={user} progress={progress} />
+        <ProfilePanel user={user} />
       </div>
       <MobileNav activeView={activeView} onNavigate={navigate} />
     </main>
   );
 }
 
-function ProfilePanel({ user, progress }: { user: SessionUser; progress: PlayerProgress }) {
-  return <RightSidebar user={user} progress={progress} />;
+function ProfilePanel({ user }: { user: SessionUser }) {
+  return <RightSidebar user={user} />;
 }
 
 function AuthenticatedLobby() {
