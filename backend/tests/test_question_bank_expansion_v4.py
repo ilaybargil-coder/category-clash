@@ -12,7 +12,6 @@ from app.seed import QUESTIONS
 
 BY_QUESTION = {question["text"]: question for question in QUESTIONS}
 NEW_QUESTION_TEXTS = {
-    "כתבו שמות של אותיות באלף-בית העברי",
     "כתבו שמות של מדינות בארצות הברית",
     "כתבו שמות של מדינות באפריקה",
 }
@@ -72,18 +71,9 @@ def test_new_question_policies_define_required_boundaries():
 
 
 def test_new_closed_sets_are_complete_and_playable():
-    assert len(BY_QUESTION["כתבו שמות של אותיות באלף-בית העברי"]["answers"]) == 22
     assert len(BY_QUESTION["כתבו שמות של מדינות בארצות הברית"]["answers"]) == 50
     assert len(BY_QUESTION["כתבו שמות של מדינות באפריקה"]["answers"]) == 54
     assert all(len(exact_forms(question_text)) >= 50 for question_text in NEW_QUESTION_TEXTS)
-
-
-def test_hebrew_letter_canonicals_symbols_and_transliterations_are_accepted():
-    question = "כתבו שמות של אותיות באלף-בית העברי"
-    assert_resolves(question, "אלף", "אלף")
-    assert_resolves(question, "א", "אלף")
-    assert_resolves(question, "Aleph", "אלף")
-    assert_resolves(question, "ך", "כף")
 
 
 def test_us_state_canonicals_english_names_and_postal_codes_are_accepted():

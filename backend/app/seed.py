@@ -51,11 +51,23 @@ from .question_bank_expansion_v7 import (
 from .question_bank_expansion_v7 import (
     EXPANSION_V7,
 )
+from .question_bank_expansion_v8 import (
+    CURATION_SOURCES as CURATION_SOURCES_V8,
+)
+from .question_bank_expansion_v8 import (
+    EXPANSION_V8,
+)
+
+DEACTIVATED_QUESTION_TEXTS = [
+    "כתבו שמות של אותיות באלף-בית העברי",
+]
 
 # The V3 governance test audits the current QUESTIONS collection through the
 # V3 registries. Register later closed-set questions there without copying any
 # V4 answer data; their actual review policies and sources remain owned by V4.
 for v4_question_text in QUESTION_POLICIES_V4:
+    if v4_question_text in DEACTIVATED_QUESTION_TEXTS:
+        continue
     ANSWER_ALIAS_ADDITIONS_V3.setdefault(v4_question_text, {})
     QUESTION_EXPANSION_SOURCES_V3.setdefault(
         v4_question_text,
@@ -79,6 +91,12 @@ for v6_question_text, v6_sources in CURATION_SOURCES_V6.items():
 for v7_question_text, v7_sources in CURATION_SOURCES_V7.items():
     ANSWER_ALIAS_ADDITIONS_V3.setdefault(v7_question_text, {})
     QUESTION_EXPANSION_SOURCES_V3.setdefault(v7_question_text, v7_sources)
+
+# V8 adds the Israeli stand-up category and keeps the V3 governance registry
+# aware of its independently curated source records.
+for v8_question_text, v8_sources in CURATION_SOURCES_V8.items():
+    ANSWER_ALIAS_ADDITIONS_V3.setdefault(v8_question_text, {})
+    QUESTION_EXPANSION_SOURCES_V3.setdefault(v8_question_text, v8_sources)
 
 DEMO_PASSWORD = "demo1234"
 
@@ -378,6 +396,20 @@ for question in QUESTIONS:
             if alias != canonical and alias not in target:
                 target.append(alias)
 
+    answers_by_canonical_v8 = {
+        canonical: aliases for canonical, aliases, _group in question["answers"]
+    }
+    for canonical, aliases, group in EXPANSION_V8.get(question["text"], []):
+        target = answers_by_canonical_v8.get(canonical)
+        if target is None:
+            copied_aliases = list(aliases)
+            question["answers"].append((canonical, copied_aliases, group))
+            answers_by_canonical_v8[canonical] = copied_aliases
+            continue
+        for alias in aliases:
+            if alias != canonical and alias not in target:
+                target.append(alias)
+
     existing_canonicals = {canonical for canonical, _aliases, _group in question["answers"]}
     for canonical, aliases, group in CURATED_ANSWER_ADDITIONS.get(question["text"], []):
         if canonical not in existing_canonicals:
@@ -454,6 +486,11 @@ async def seed() -> None:
                 .all()
             )
         }
+        for question_text in DEACTIVATED_QUESTION_TEXTS:
+            question = existing_questions.get(question_text)
+            if question is not None:
+                question.is_active = False
+
         for q in QUESTIONS:
             question = existing_questions.get(q["text"])
             if question is None:

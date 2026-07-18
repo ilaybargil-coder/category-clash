@@ -46,30 +46,6 @@ QUESTION_EXPANSIONS_V4: dict[str, list[tuple[str, list[str], str | None]]] = {
 
 
 ANSWER_ALIAS_ADDITIONS_V4: dict[str, dict[str, list[str]]] = {
-    "כתבו שמות של אותיות באלף-בית העברי": {
-        "אלף": ["א", "Aleph"],
-        "בית": ["ב", "Bet", "Beth"],
-        "גימל": ["ג", "Gimel"],
-        "דלת": ["ד", "Dalet"],
-        "הא": ["ה", "He"],
-        "ויו": ["ו", "Vav", "Waw"],
-        "זין": ["ז", "Zayin"],
-        "חית": ["ח", "Het", "Chet"],
-        "טית": ["ט", "Tet"],
-        "יוד": ["י", "Yod"],
-        "כף": ["כ", "Kaf", "Khaf"],
-        "למד": ["ל", "Lamed"],
-        "מם": ["מ", "Mem"],
-        "נון": ["נ", "Nun"],
-        "סמך": ["ס", "Samekh"],
-        "עין": ["ע", "Ayin"],
-        "פא": ["פ", "Pe"],
-        "צדי": ["צ", "Tsadi", "Tzadi"],
-        "קוף": ["ק", "Qof", "Kuf"],
-        "ריש": ["ר", "Resh"],
-        "שין": ["ש", "Shin"],
-        "תיו": ["ת", "Tav"],
-    },
     "כתבו שמות של מדינות בארצות הברית": {
         "אלבמה": ["Alabama", "AL"],
         "אלסקה": ["Alaska", "AK"],
@@ -230,14 +206,6 @@ ANSWER_GROUP_UPDATES_V4: dict[str, dict[str, str]] = {}
 
 # Boundary policies required by docs/ADDING_A_QUESTION.md for new questions.
 QUESTION_POLICIES_V4: dict[str, dict[str, str | list[str]]] = {
-    "כתבו שמות של אותיות באלף-בית העברי": {
-        "includes": "The 22 base letters of the modern Hebrew alphabet.",
-        "excludes": ["ניקוד", "אות לטינית", "אות סופית כתשובה נפרדת"],
-        "granularity": "A final form resolves to its base letter and cannot score separately.",
-        "time_and_place": "The modern Hebrew alphabet used in Israel.",
-        "brands": "Not applicable.",
-        "language": "Hebrew letter names and symbols plus established English transliterations.",
-    },
     "כתבו שמות של מדינות בארצות הברית": {
         "includes": "The 50 states of the United States.",
         "excludes": ["מחוז קולומביה", "פוארטו ריקו", "גואם"],
@@ -258,10 +226,6 @@ QUESTION_POLICIES_V4: dict[str, dict[str, str | list[str]]] = {
 
 
 QUESTION_EXPANSION_SOURCES_V4: dict[str, list[str]] = {
-    "כתבו שמות של אותיות באלף-בית העברי": [
-        "https://www.unicode.org/charts/PDF/Unicode-18.0/U180-0590.pdf",
-        "https://meyda.education.gov.il/files/Pop/0files/amnuyot_itzuv_itzuv/Chativa-Elyona/curriculum-topics/6-Typography.pdf",
-    ],
     "כתבו שמות של מדינות בארצות הברית": [
         "https://www.census.gov/library/reference/code-lists/ansi/ansi-codes-for-states.html",
         "https://about.usps.com/who/profile/history/state-abbreviations.htm",
