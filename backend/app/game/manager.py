@@ -35,6 +35,8 @@ def game_config_from_settings() -> GameConfig:
         fuzzy_matching_enabled=settings.fuzzy_matching_enabled,
         fuzzy_max_distance=settings.fuzzy_max_distance,
         fuzzy_min_length=settings.fuzzy_min_length,
+        fuzzy_two_edit_min_length=settings.fuzzy_two_edit_min_length,
+        hebrew_skeleton_matching_enabled=settings.hebrew_skeleton_matching_enabled,
         unique_prefix_matching_enabled=settings.unique_prefix_matching_enabled,
         unique_prefix_min_length=settings.unique_prefix_min_length,
         definite_article_matching_enabled=settings.definite_article_matching_enabled,

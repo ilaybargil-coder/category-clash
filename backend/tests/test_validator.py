@@ -3,6 +3,7 @@ from app.game.validator import (
     RoundValidator,
     build_question_index,
     normalize_answer,
+    skeleton_form,
 )
 
 
@@ -45,6 +46,15 @@ class TestNormalization:
 
     def test_empty_is_empty(self):
         assert normalize_answer("   ") == ""
+
+
+class TestSkeletonForm:
+    def test_collapses_doubled_matres(self):
+        assert skeleton_form("טלוויזייה") == skeleton_form("טלויזיה")
+
+    def test_folds_explicit_sin_but_not_unpointed_shin(self):
+        assert skeleton_form(normalize_answer("שׂ")) == skeleton_form("ס")
+        assert skeleton_form(normalize_answer("ש")) != skeleton_form("ס")
 
 
 class TestRoundValidator:
@@ -134,6 +144,93 @@ class TestTypoTolerance:
         v = RoundValidator(make_index(), fuzzy_enabled=True, fuzzy_min_length=4)
         assert v.check("מסוק").status == AnswerStatus.VALID
         assert v.check("מסןק").status == AnswerStatus.DUPLICATE
+
+    def test_accepts_dolphin_substitution(self):
+        index = build_question_index([(1, "דולפין", None, [])])
+        result = RoundValidator(index, fuzzy_enabled=True).check("דולפיו")
+        assert result.status == AnswerStatus.VALID
+        assert result.entry is not None
+        assert result.entry.canonical == "דולפין"
+
+    def test_accepts_two_edits_at_scaled_long_length(self):
+        index = build_question_index([(1, "דולפינים", None, [])])
+        validator = RoundValidator(index, fuzzy_enabled=True)
+        assert validator.check("דולבענים").status == AnswerStatus.VALID
+
+    def test_rejects_two_edits_below_scaled_length(self):
+        index = build_question_index([(1, "דולפין", None, [])])
+        validator = RoundValidator(index, fuzzy_enabled=True)
+        assert validator.check("דולביא").status == AnswerStatus.INVALID
+
+    def test_unrelated_word_stays_invalid_with_forgiving_layers(self):
+        index = build_question_index([(1, "דולפין", None, [])])
+        validator = RoundValidator(
+            index,
+            fuzzy_enabled=True,
+            hebrew_skeleton_enabled=True,
+        )
+        assert validator.check("בננה").status == AnswerStatus.INVALID
+
+
+class TestHebrewSkeletonTolerance:
+    def test_accepts_single_vav_full_spelling_variant(self):
+        index = build_question_index([(1, "טלוויזיה", None, [])])
+        validator = RoundValidator(index, hebrew_skeleton_enabled=True)
+        assert validator.check("טלויזיה").status == AnswerStatus.VALID
+
+    def test_accepts_guttural_spelling_variant(self):
+        index = build_question_index([(1, "חתול", None, [])])
+        validator = RoundValidator(index, hebrew_skeleton_enabled=True)
+        assert validator.check("כתול").status == AnswerStatus.VALID
+
+    def test_accepts_tet_tav_spelling_variant(self):
+        index = build_question_index([(1, "פתה", None, [])])
+        validator = RoundValidator(index, hebrew_skeleton_enabled=True)
+        assert validator.check("פטה").status == AnswerStatus.VALID
+
+    def test_accepts_doubled_vav_variant(self):
+        index = build_question_index([(1, "וורד", None, [])])
+        validator = RoundValidator(index, hebrew_skeleton_enabled=True)
+        assert validator.check("ורד").status == AnswerStatus.VALID
+
+    def test_rejects_ambiguous_skeleton(self):
+        index = build_question_index(
+            [
+                (1, "חתול", None, []),
+                (2, "כתול", None, []),
+            ]
+        )
+        validator = RoundValidator(index, hebrew_skeleton_enabled=True)
+        assert validator.check("קתול").status == AnswerStatus.INVALID
+
+    def test_exact_answer_wins_despite_skeleton_collision(self):
+        index = build_question_index(
+            [
+                (1, "חתול", None, []),
+                (2, "כתול", None, []),
+            ]
+        )
+        result = RoundValidator(index, hebrew_skeleton_enabled=True).check("חתול")
+        assert result.status == AnswerStatus.VALID
+        assert result.entry is not None
+        assert result.entry.answer_id == 1
+
+    def test_skeleton_match_preserves_duplicate_logic(self):
+        index = build_question_index([(1, "חתול", None, [])])
+        validator = RoundValidator(index, hebrew_skeleton_enabled=True)
+        assert validator.check("חתול").status == AnswerStatus.VALID
+        assert validator.check("כתול").status == AnswerStatus.DUPLICATE
+
+    def test_skeleton_match_preserves_semantic_group_logic(self):
+        index = build_question_index(
+            [
+                (1, "חתול", "pet", []),
+                (2, "כלב", "pet", []),
+            ]
+        )
+        validator = RoundValidator(index, hebrew_skeleton_enabled=True)
+        assert validator.check("חתול").status == AnswerStatus.VALID
+        assert validator.check("חלב").status == AnswerStatus.TOO_SIMILAR
 
 
 class TestSafeCompletion:

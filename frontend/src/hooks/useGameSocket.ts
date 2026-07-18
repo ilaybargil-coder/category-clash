@@ -37,6 +37,7 @@ export function useGameSocket(code: string) {
     getToken() ? "connecting" : "unauthorized"
   );
   const [rejection, setRejection] = useState<string | null>(null);
+  const [stateSyncRevision, setStateSyncRevision] = useState(0);
   const wsRef = useRef<WebSocket | null>(null);
   const pendingAnswerRef = useRef<PendingAnswerCommand | null>(null);
 
@@ -126,6 +127,9 @@ export function useGameSocket(code: string) {
             ws.send(JSON.stringify(pendingAnswerRef.current));
           }
         }
+        if (event.type === "state_sync") {
+          setStateSyncRevision((revision) => revision + 1);
+        }
         setState((prev) => applyServerEvent(prev, event));
         if (event.type === "action_rejected") {
           setRejection(event.status as string);
@@ -190,5 +194,13 @@ export function useGameSocket(code: string) {
     return true;
   }, []);
 
-  return { state, status, rejection, clearRejection, submitAnswer, usePowerup };
+  return {
+    state,
+    stateSyncRevision,
+    status,
+    rejection,
+    clearRejection,
+    submitAnswer,
+    usePowerup,
+  };
 }

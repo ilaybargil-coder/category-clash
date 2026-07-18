@@ -16,6 +16,11 @@
     --cream: #f7f0df;
   }
 
+  html,
+  body {
+    overscroll-behavior: none;
+  }
+
   html {
     -webkit-tap-highlight-color: transparent;
     background: var(--app-bg);
@@ -244,6 +249,7 @@
     background: rgba(3, 8, 13, 0.7);
     padding: 0.85rem 1rem;
     color: white;
+    font-size: 1rem;
     outline: none;
     transition: border-color 160ms ease, box-shadow 160ms ease;
   }
@@ -272,5 +278,77 @@
   @media (min-width: 1024px) {
     .desktop-sidebar { display: flex; }
     .mobile-nav { display: none; }
+  }
+}
+
+@layer components {
+  .timer-bar-fill {
+    transform-origin: center;
+    transition: width 100ms linear, background-color 320ms ease;
+  }
+
+  .timer-bar-fill--critical {
+    animation: timer-heartbeat 1s ease-in-out infinite;
+  }
+
+  .answer-own-valid {
+    animation: answer-valid-enter 360ms cubic-bezier(0.2, 0.85, 0.32, 1.2) both;
+  }
+
+  .answer-own-valid__mark {
+    animation: answer-valid-mark 420ms 80ms cubic-bezier(0.2, 0.9, 0.3, 1.35) both;
+  }
+}
+
+@keyframes timer-heartbeat {
+  0%,
+  100% {
+    opacity: 0.82;
+    transform: scaleY(1);
+  }
+  45% {
+    opacity: 1;
+    transform: scaleY(1.35);
+  }
+}
+
+@keyframes answer-valid-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(0.3rem) scale(0.92);
+  }
+  68% {
+    opacity: 1;
+    transform: translateY(0) scale(1.025);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes answer-valid-mark {
+  0% {
+    opacity: 0;
+    transform: scale(0.35) rotate(-18deg);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.12) rotate(3deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .timer-bar-fill--critical {
+    animation: none;
+  }
+
+  .answer-own-valid,
+  .answer-own-valid__mark {
+    animation: none;
   }
 }

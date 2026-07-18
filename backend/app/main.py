@@ -9,6 +9,7 @@ from sqlalchemy import text
 from .api.friends import router as friends_router
 from .api.invites import router as invites_router
 from .api.presence import router as presence_router
+from .api.reports import router as reports_router
 from .api.routes import router as api_router
 from .api.solo import router as solo_router
 from .config import settings
@@ -75,6 +76,7 @@ async def ready() -> dict[str, str]:
 
 app.include_router(api_router)
 app.include_router(friends_router)
+app.include_router(reports_router)
 app.include_router(presence_router)
 app.include_router(invites_router)
 app.include_router(solo_router)
