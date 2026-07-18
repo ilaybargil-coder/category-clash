@@ -1,8 +1,10 @@
+from datetime import date as date_type
 from datetime import datetime
 
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
+    Date,
     DateTime,
     ForeignKey,
     Integer,
@@ -71,6 +73,18 @@ class Question(Base):
     answers: Mapped[list["ApprovedAnswer"]] = relationship(
         back_populates="question", cascade="all, delete-orphan"
     )
+
+
+class DailyResult(Base):
+    __tablename__ = "daily_results"
+    __table_args__ = (UniqueConstraint("user_id", "date", name="uq_daily_results_user_date"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    date: Mapped[date_type] = mapped_column(Date, index=True)
+    question_id: Mapped[int] = mapped_column(ForeignKey("questions.id", ondelete="CASCADE"))
+    score: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class AnswerReport(Base):

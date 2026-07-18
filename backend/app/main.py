@@ -6,6 +6,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
+from .api.daily import router as daily_router
 from .api.friends import router as friends_router
 from .api.invites import router as invites_router
 from .api.presence import router as presence_router
@@ -75,6 +76,7 @@ async def ready() -> dict[str, str]:
 
 
 app.include_router(api_router)
+app.include_router(daily_router)
 app.include_router(friends_router)
 app.include_router(reports_router)
 app.include_router(presence_router)
