@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useViewportHeight } from "@/hooks/useViewportHeight";
 import { API_URL, ApiError, getToken, getUser, type SoloAnswerStatus } from "@/lib/api";
 
 interface DailyResult {
@@ -76,6 +77,8 @@ async function dailyRequest<T>(path: string, options: RequestInit = {}): Promise
 }
 
 export default function DailyPage() {
+  useViewportHeight();
+
   const router = useRouter();
   const user = getUser();
   const [today, setToday] = useState<DailyToday | null>(null);
@@ -216,10 +219,14 @@ export default function DailyPage() {
   }
 
   return (
-    <main dir="rtl" className="app-background min-h-dvh p-3 sm:p-5">
-      <div className="mx-auto grid max-w-5xl gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <section className="surface-panel overflow-hidden rounded-2xl">
-          <header className="relative overflow-hidden border-b border-white/10 bg-violet-600/10 px-5 py-7 text-center sm:px-8">
+    <main
+      dir="rtl"
+      className="app-background overflow-hidden p-3 sm:p-5"
+      style={{ height: "var(--app-vh, 100dvh)" }}
+    >
+      <div className="mx-auto grid h-full min-h-0 max-w-5xl gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <section className="surface-panel flex h-full min-h-0 flex-col overflow-hidden rounded-2xl">
+          <header className="relative shrink-0 overflow-hidden border-b border-white/10 bg-violet-600/10 px-5 py-7 text-center sm:px-8">
             <div className="pointer-events-none absolute inset-x-1/4 -top-24 h-44 rounded-full bg-violet-500/20 blur-3xl" />
             <button
               type="button"
@@ -237,7 +244,7 @@ export default function DailyPage() {
             <p className="relative mt-3 text-sm text-slate-400">קטגוריה אחת לכולם · ניסיון אחד היום</p>
           </header>
 
-          <div className="space-y-5 p-4 sm:p-7">
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 sm:p-7">
             {today.result ? (
               <section className="rounded-2xl border border-emerald-400/25 bg-emerald-500/10 p-6 text-center">
                 <p className="text-sm font-bold text-emerald-300">האתגר הושלם</p>
@@ -277,7 +284,7 @@ export default function DailyPage() {
                   </div>
                 )}
 
-                <form onSubmit={submitAnswer} className="flex gap-2">
+                <form onSubmit={submitAnswer} className="flex shrink-0 gap-2">
                   <input
                     autoFocus
                     value={draft}
@@ -295,7 +302,7 @@ export default function DailyPage() {
                   type="button"
                   onClick={() => void finishAttempt()}
                   disabled={busy}
-                  className="secondary-button w-full py-3 disabled:opacity-40"
+                  className="secondary-button w-full shrink-0 py-3 disabled:opacity-40"
                 >
                   סיימתי — שמירת תוצאה
                 </button>
