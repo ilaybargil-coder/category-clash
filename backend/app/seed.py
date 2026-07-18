@@ -39,6 +39,12 @@ from .question_bank_expansion_v5 import (
 from .question_bank_expansion_v5 import (
     EXPANSION_V5,
 )
+from .question_bank_expansion_v6 import (
+    CURATION_SOURCES as CURATION_SOURCES_V6,
+)
+from .question_bank_expansion_v6 import (
+    EXPANSION_V6,
+)
 
 # The V3 governance test audits the current QUESTIONS collection through the
 # V3 registries. Register later closed-set questions there without copying any
@@ -55,6 +61,12 @@ for v4_question_text in QUESTION_POLICIES_V4:
 for v5_question_text, v5_sources in CURATION_SOURCES_V5.items():
     ANSWER_ALIAS_ADDITIONS_V3.setdefault(v5_question_text, {})
     QUESTION_EXPANSION_SOURCES_V3.setdefault(v5_question_text, v5_sources)
+
+# V6 owns the source records for its ten new fun categories while the V3
+# governance registry continues to cover every question in the live bank.
+for v6_question_text, v6_sources in CURATION_SOURCES_V6.items():
+    ANSWER_ALIAS_ADDITIONS_V3.setdefault(v6_question_text, {})
+    QUESTION_EXPANSION_SOURCES_V3.setdefault(v6_question_text, v6_sources)
 
 DEMO_PASSWORD = "demo1234"
 
@@ -321,6 +333,20 @@ for question in QUESTIONS:
             copied_aliases = list(aliases)
             question["answers"].append((canonical, copied_aliases, group))
             answers_by_canonical_v5[canonical] = copied_aliases
+            continue
+        for alias in aliases:
+            if alias != canonical and alias not in target:
+                target.append(alias)
+
+    answers_by_canonical_v6 = {
+        canonical: aliases for canonical, aliases, _group in question["answers"]
+    }
+    for canonical, aliases, group in EXPANSION_V6.get(question["text"], []):
+        target = answers_by_canonical_v6.get(canonical)
+        if target is None:
+            copied_aliases = list(aliases)
+            question["answers"].append((canonical, copied_aliases, group))
+            answers_by_canonical_v6[canonical] = copied_aliases
             continue
         for alias in aliases:
             if alias != canonical and alias not in target:
