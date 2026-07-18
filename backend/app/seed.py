@@ -57,6 +57,12 @@ from .question_bank_expansion_v8 import (
 from .question_bank_expansion_v8 import (
     EXPANSION_V8,
 )
+from .question_bank_expansion_v9 import (
+    CURATION_SOURCES as CURATION_SOURCES_V9,
+)
+from .question_bank_expansion_v9 import (
+    EXPANSION_V9,
+)
 
 DEACTIVATED_QUESTION_TEXTS = [
     "כתבו שמות של אותיות באלף-בית העברי",
@@ -97,6 +103,12 @@ for v7_question_text, v7_sources in CURATION_SOURCES_V7.items():
 for v8_question_text, v8_sources in CURATION_SOURCES_V8.items():
     ANSWER_ALIAS_ADDITIONS_V3.setdefault(v8_question_text, {})
     QUESTION_EXPANSION_SOURCES_V3.setdefault(v8_question_text, v8_sources)
+
+# V9 adds eight pop-culture categories and keeps the V3 governance registry
+# aware of their independently curated source records.
+for v9_question_text, v9_sources in CURATION_SOURCES_V9.items():
+    ANSWER_ALIAS_ADDITIONS_V3.setdefault(v9_question_text, {})
+    QUESTION_EXPANSION_SOURCES_V3.setdefault(v9_question_text, v9_sources)
 
 DEMO_PASSWORD = "demo1234"
 
@@ -405,6 +417,20 @@ for question in QUESTIONS:
             copied_aliases = list(aliases)
             question["answers"].append((canonical, copied_aliases, group))
             answers_by_canonical_v8[canonical] = copied_aliases
+            continue
+        for alias in aliases:
+            if alias != canonical and alias not in target:
+                target.append(alias)
+
+    answers_by_canonical_v9 = {
+        canonical: aliases for canonical, aliases, _group in question["answers"]
+    }
+    for canonical, aliases, group in EXPANSION_V9.get(question["text"], []):
+        target = answers_by_canonical_v9.get(canonical)
+        if target is None:
+            copied_aliases = list(aliases)
+            question["answers"].append((canonical, copied_aliases, group))
+            answers_by_canonical_v9[canonical] = copied_aliases
             continue
         for alias in aliases:
             if alias != canonical and alias not in target:
