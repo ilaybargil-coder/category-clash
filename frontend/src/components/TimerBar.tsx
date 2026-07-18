@@ -48,11 +48,19 @@ export default function TimerBar({
   const fraction = Math.min(1, remainingMs / (turnSeconds * 1000));
   const seconds = Math.ceil(remainingMs / 1000);
   const urgent = seconds <= 5;
+  const critical = remainingMs < 3000;
+  const fillColor =
+    fraction > 0.5 ? "#4fb596" : fraction >= 0.2 ? "#f0a500" : "#e63946";
 
   return (
     <div className="mt-2 flex items-center justify-center gap-3">
       <div className="h-1 flex-1 overflow-hidden rounded-full bg-violet-300/20">
-        <div className="h-full rounded-full bg-violet-600" style={{ width: `${fraction * 100}%` }} />
+        <div
+          className={`timer-bar-fill h-full rounded-full ${
+            critical ? "timer-bar-fill--critical" : ""
+          }`}
+          style={{ width: `${fraction * 100}%`, backgroundColor: fillColor }}
+        />
       </div>
       <span
         className={`grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#fff8e9] font-mono text-lg font-black tabular-nums transition ${
@@ -67,8 +75,10 @@ export default function TimerBar({
       </span>
       <div className="h-1 flex-1 overflow-hidden rounded-full bg-emerald-500/20">
         <div
-          className="mr-auto h-full rounded-full bg-emerald-600"
-          style={{ width: `${fraction * 100}%` }}
+          className={`timer-bar-fill mr-auto h-full rounded-full ${
+            critical ? "timer-bar-fill--critical" : ""
+          }`}
+          style={{ width: `${fraction * 100}%`, backgroundColor: fillColor }}
         />
       </div>
     </div>

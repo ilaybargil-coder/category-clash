@@ -60,6 +60,7 @@ export default function AnswerFeed({ answers, myUserId, players }: Props) {
         const mine = answer.user_id === myUserId;
         const meta = STATUS_META[answer.status] ?? STATUS_META.INVALID;
         const wrong = answer.status !== "VALID";
+        const ownValid = mine && answer.status === "VALID";
         return (
           <div
             key={answer.submission_id}
@@ -67,7 +68,9 @@ export default function AnswerFeed({ answers, myUserId, players }: Props) {
             className={`flex ${mine ? "justify-start" : "justify-end"}`}
           >
             <div
-              className={`max-w-[82%] animate-pop-in rounded-xl px-3.5 py-2.5 shadow-lg sm:max-w-[65%] ${
+              className={`max-w-[82%] rounded-xl px-3.5 py-2.5 shadow-lg sm:max-w-[65%] ${
+                ownValid ? "answer-own-valid" : "animate-pop-in"
+              } ${
                 mine
                   ? "rounded-br-sm border border-violet-300/20 bg-gradient-to-l from-violet-700 to-violet-600 text-white"
                   : "rounded-bl-sm border border-[#e4dbc8] bg-[#f5efdf] text-slate-900"
@@ -77,7 +80,9 @@ export default function AnswerFeed({ answers, myUserId, players }: Props) {
             >
               <div className="flex items-center gap-2">
                 <span
-                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-black ${meta.tone}`}
+                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-black ${meta.tone} ${
+                    ownValid ? "answer-own-valid__mark" : ""
+                  }`}
                 >
                   {meta.icon}
                 </span>
