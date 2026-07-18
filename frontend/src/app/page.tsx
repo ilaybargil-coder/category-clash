@@ -46,22 +46,22 @@ function GameActions({ user }: { user: SessionUser | null }) {
   return (
     <section
       id="play"
-      className={`surface-panel overflow-hidden rounded-2xl ${
+      className={`surface-panel hero-panel overflow-hidden rounded-2xl ${
         user ? "" : "pointer-events-none opacity-40"
       }`}
     >
-      <div className="relative overflow-hidden border-b border-white/10 px-5 py-6 sm:px-7 sm:py-8">
+      <div className="relative overflow-hidden border-b border-white/10 px-5 py-6 sm:min-h-[330px] sm:px-8 sm:py-9">
         <div className="pointer-events-none absolute -left-12 -top-16 h-52 w-52 rounded-full bg-violet-600/20 blur-3xl" />
-        <p className="relative text-xs font-bold tracking-[0.16em] text-violet-300">
-          משחק בזמן אמת
+        <p className="relative z-10 text-xs font-bold tracking-[0.16em] text-violet-300">
+          ⚡ משחק בזמן אמת
         </p>
-        <h2 className="relative mt-2 max-w-xl text-2xl font-black text-white sm:text-4xl">
+        <h2 className="relative z-10 mt-2 max-w-xl text-2xl font-black text-white sm:text-4xl">
           מוכנים לקרב הבא?
         </h2>
-        <p className="relative mt-2 max-w-lg text-sm leading-6 text-slate-400 sm:text-base">
+        <p className="relative z-10 mt-2 max-w-lg text-sm leading-6 text-slate-400 sm:max-w-md sm:text-base">
           פתחו חדר, שלחו לחבר את הקוד ונסו להיות האחרונים שנשארים עם תשובה.
         </p>
-        <div className="relative mt-6 flex flex-col gap-3 sm:flex-row">
+        <div className="relative z-10 mt-6 flex flex-col gap-3 sm:flex-row">
           <button
             type="button"
             onClick={onCreateRoom}
@@ -127,13 +127,15 @@ function StatsStrip({ user }: { user: SessionUser }) {
   const games = user.wins + user.losses;
   const rate = games ? Math.round((user.wins / games) * 100) : 0;
   return (
-    <section id="stats" className="grid scroll-mt-4 grid-cols-3 gap-2 sm:gap-3">
+    <section id="stats" className="grid scroll-mt-4 grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
       {[
-        ["ניצחונות", user.wins],
-        ["אחוז הצלחה", `${rate}%`],
-        ["משחקים", games],
-      ].map(([label, value]) => (
-        <div key={label} className="surface-panel rounded-xl px-3 py-4 text-center sm:p-5">
+        ["ניצחונות", user.wins, "🏆"],
+        ["אחוז הצלחה", `${rate}%`, "☆"],
+        ["משחקים", games, "🎮"],
+        ["הפסדים", user.losses, "◎"],
+      ].map(([label, value, icon]) => (
+        <div key={label} className="surface-panel stat-card rounded-xl px-3 py-4 sm:p-5">
+          <span className="stat-icon">{icon}</span>
           <strong className="block text-xl font-black text-white sm:text-2xl">{value}</strong>
           <span className="mt-1 block text-[11px] text-slate-500 sm:text-xs">{label}</span>
         </div>
@@ -180,19 +182,20 @@ function LobbyDashboard({
   onSignOut: () => void;
 }) {
   return (
-    <main className="app-background min-h-dvh p-3 pb-24 sm:p-4 lg:pb-4">
-      <div className="mx-auto grid min-h-[calc(100dvh-2rem)] max-w-[1500px] gap-4 lg:grid-cols-[230px_minmax(0,1fr)] xl:grid-cols-[230px_minmax(0,1fr)_310px]">
+    <main className="app-background min-h-dvh p-3 pb-28 sm:p-4 lg:pb-4">
+      <div className="mx-auto grid min-h-[calc(100dvh-2rem)] max-w-[1600px] gap-4 lg:grid-cols-[250px_minmax(0,1fr)] xl:grid-cols-[250px_minmax(0,1fr)_300px]">
         <DesktopSidebar user={user} onSignOut={onSignOut} />
 
         <section className="min-w-0 py-1 lg:px-2 lg:py-3">
-          <header className="mb-6 flex items-center justify-between gap-4">
+          <header className="mobile-header mb-5 flex items-center justify-between gap-4 surface-panel rounded-2xl p-4 lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none">
             <div>
-              <p className="text-xs font-bold text-violet-300">ברוכים הבאים לזירה</p>
+              <p className="text-xs font-bold text-violet-300">ברוכים הבאים לזירה 👋</p>
               <h1 className="mt-1 text-2xl font-black text-white sm:text-3xl">
                 ערב טוב, {user.display_name}
               </h1>
             </div>
-            <div className="flex items-center gap-3 lg:hidden">
+            <div className="flex items-center gap-2 lg:hidden">
+              <button className="notification-button" aria-label="התראות">♢</button>
               <CoinPill coins={user.coins} />
               <UserAvatar name={user.display_name} online size="sm" />
             </div>

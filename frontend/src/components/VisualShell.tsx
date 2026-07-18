@@ -108,9 +108,17 @@ export function MobileNav() {
         <b>◎</b>
         חברים
       </a>
+      <a href="#play" className="mobile-nav__item mobile-nav__play" aria-label="משחק חדש">
+        <b>⚡</b>
+        משחק
+      </a>
       <a href="#stats" className="mobile-nav__item">
         <b>◫</b>
         סטטיסטיקה
+      </a>
+      <a href="#profile" className="mobile-nav__item">
+        <b>♙</b>
+        פרופיל
       </a>
     </nav>
   );

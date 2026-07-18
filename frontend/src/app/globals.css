@@ -401,3 +401,54 @@
     transition: none;
   }
 }
+
+/* Premium lobby design system */
+@layer components {
+  .app-background {
+    background:
+      radial-gradient(circle at 72% -10%, rgba(116, 36, 255, .18), transparent 34rem),
+      radial-gradient(circle at 4% 78%, rgba(51, 24, 124, .16), transparent 30rem),
+      #03050d;
+  }
+
+  .surface-panel {
+    border-color: rgba(145, 125, 204, .16);
+    background: linear-gradient(145deg, rgba(14, 16, 37, .96), rgba(6, 9, 23, .97));
+    box-shadow: inset 0 1px rgba(255,255,255,.025), 0 24px 70px rgba(0,0,0,.28);
+  }
+
+  .hero-panel > div:first-child::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(90deg, #09091a 15%, rgba(9,9,26,.92) 40%, rgba(9,9,26,.12) 76%),
+      url('/assets/category-clash-hero.webp') right center / auto 125% no-repeat;
+    pointer-events: none;
+  }
+
+  .hero-panel > div:first-child > * { position: relative; z-index: 1; }
+
+  .stat-card { position: relative; overflow: hidden; text-align: right; transition: transform .2s ease, border-color .2s ease; }
+  .stat-card:hover { transform: translateY(-3px); border-color: rgba(167, 90, 255, .38); }
+  .stat-card::after { content: ""; position: absolute; width: 5rem; height: 5rem; inset: auto auto -3rem -2rem; border-radius: 50%; background: rgba(127, 58, 240, .12); filter: blur(15px); }
+  .stat-icon { float: left; display: grid; width: 2.25rem; height: 2.25rem; place-items: center; border: 1px solid rgba(166,98,234,.28); border-radius: .7rem; background: rgba(125,65,210,.1); color: #b772ff; font-size: 1.25rem; }
+
+  .notification-button { display: grid; width: 2.25rem; height: 2.25rem; place-items: center; border: 1px solid var(--line); border-radius: .7rem; background: rgba(255,255,255,.025); color: #cbb9ea; }
+  .primary-button { min-height: 3rem; border: 1px solid rgba(211,154,255,.36); background: linear-gradient(135deg,#a93cff,#6d25d7); box-shadow: 0 0 28px rgba(143,55,255,.24), inset 0 1px rgba(255,255,255,.28); }
+  .secondary-button:focus-visible, .primary-button:focus-visible, .sidebar-link:focus-visible, .mobile-nav__item:focus-visible { outline: 2px solid #c17bff; outline-offset: 3px; }
+
+  .mobile-nav { grid-template-columns: repeat(5,1fr); border-top-color: rgba(160,116,220,.2); background: rgba(5,7,19,.94); }
+  .mobile-nav__play b { display:grid; width:2.7rem; height:2.7rem; margin-top:-1.2rem; place-items:center; border:1px solid #bd75ff; border-radius:50%; background:linear-gradient(135deg,#a33cff,#6122c8); color:#fff; box-shadow:0 0 25px rgba(155,61,255,.45); }
+
+  @media (max-width: 639px) {
+    .hero-panel > div:first-child { padding-bottom: 1.25rem; }
+    .hero-panel > div:first-child::after { opacity: .28; background-position: 72% center; background-size: auto 115%; }
+    .hero-panel h2 { max-width: 13rem; }
+    .mobile-header h1 { font-size: 1.2rem; }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+}
