@@ -75,15 +75,15 @@ export function DesktopSidebar({
         </div>
       </div>
       <nav className="sidebar-nav" aria-label="ניווט ראשי">
-        <span className="sidebar-link sidebar-link--active">
+        <a href="#play" className="sidebar-link sidebar-link--active">
           <span>⌂</span> בית
-        </span>
-        <span className="sidebar-link">
-          <span>◎</span> המשחקים שלי
-        </span>
-        <span className="sidebar-link">
+        </a>
+        <a href="#friends" className="sidebar-link">
+          <span>◎</span> חברים
+        </a>
+        <a href="#stats" className="sidebar-link">
           <span>◫</span> סטטיסטיקות
-        </span>
+        </a>
       </nav>
       <div className="mt-auto space-y-3">
         <button type="button" onClick={onSignOut} className="secondary-button w-full">
@@ -100,19 +100,18 @@ export function DesktopSidebar({
 export function MobileNav() {
   return (
     <nav className="mobile-nav" aria-label="ניווט מובייל">
-      <span className="mobile-nav__item mobile-nav__item--active">
+      <a href="#play" className="mobile-nav__item mobile-nav__item--active">
         <b>⌂</b>
         בית
-      </span>
-      <span className="mobile-nav__item">
+      </a>
+      <a href="#friends" className="mobile-nav__item">
         <b>◎</b>
-        משחקים
-      </span>
-      <span className="mobile-nav__item">
+        חברים
+      </a>
+      <a href="#stats" className="mobile-nav__item">
         <b>◫</b>
-        פרופיל
-      </span>
+        סטטיסטיקה
+      </a>
     </nav>
   );
 }
-

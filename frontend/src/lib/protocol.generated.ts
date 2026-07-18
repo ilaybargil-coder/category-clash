@@ -6,11 +6,26 @@ export interface SubmitAnswerCommand {
   text: string;
 }
 
+export interface SwapQuestionCommand {
+  type: "swap_question";
+  client_command_id: string;
+}
+
+export interface ExtendTimeCommand {
+  type: "extend_time";
+  client_command_id: string;
+}
+
+export interface UseJokerCommand {
+  type: "use_joker";
+  client_command_id: string;
+}
+
 export interface PingCommand {
   type: "ping";
 }
 
-export type ClientCommand = SubmitAnswerCommand | PingCommand;
+export type ClientCommand = SubmitAnswerCommand | SwapQuestionCommand | ExtendTimeCommand | UseJokerCommand | PingCommand;
 
 export interface ServerEventEnvelope {
   event_id: string;

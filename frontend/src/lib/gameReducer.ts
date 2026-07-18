@@ -104,6 +104,13 @@ export function applyServerEvent(
       }
       break;
     }
+    case "powerup_used":
+      next.powerups = event.powerups as GameState["powerups"];
+      next.question = event.question as GameState["question"];
+      next.phase = event.phase as GameState["phase"];
+      next.turn_user_id = event.turn_user_id as number;
+      next.deadline_epoch_ms = event.deadline_epoch_ms as number | null;
+      break;
     case "round_finished":
       next.phase = "ROUND_FINISHED";
       next.score = event.score as ScoreEntry[];

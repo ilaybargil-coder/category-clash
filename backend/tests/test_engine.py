@@ -4,7 +4,7 @@ import asyncio
 
 import pytest
 
-from app.game.engine import GameConfig, GameRoom, RoomPhase
+from app.game.engine import GameConfig, GameRoom, PowerUpStatus, RoomPhase
 from app.game.validator import AnswerStatus, QuestionData, build_question_index
 
 P1, P2 = 1, 2
@@ -210,6 +210,56 @@ class TestTimer:
         assert len(finished) == 1
         assert finished[0]["winner_user_id"] == starter
         assert sum(room.score.values()) == 1
+
+
+class TestPowerUps:
+    async def test_extend_time_once_per_player(self):
+        room, _ = make_room(turn_seconds=5)
+        await join_both(room)
+        await wait_for_phase(room, RoomPhase.ROUND_ACTIVE)
+        player = room.turn_user_id
+        before = room.turn_deadline
+        assert await room.use_powerup(player, "extend_time", "extend-1") == PowerUpStatus.USED
+        assert room.turn_deadline >= before + 4.9
+        assert (
+            await room.use_powerup(player, "extend_time", "extend-2") == PowerUpStatus.ALREADY_USED
+        )
+
+    async def test_joker_passes_turn_once_per_player(self):
+        room, _ = make_room(turn_seconds=5)
+        await join_both(room)
+        await wait_for_phase(room, RoomPhase.ROUND_ACTIVE)
+        player = room.turn_user_id
+        opponent = room._other(player)
+        assert await room.use_powerup(player, "joker", "joker-1") == PowerUpStatus.USED
+        assert room.turn_user_id == opponent
+        await room.submit_answer(opponent, "מנגו")
+        assert room.turn_user_id == player
+        assert await room.use_powerup(player, "joker", "joker-2") == PowerUpStatus.ALREADY_USED
+
+    async def test_swap_replaces_question_and_restarts_preview(self):
+        room, _ = make_room(turn_seconds=5, preview=5)
+        await join_both(room)
+        player = room.turn_user_id
+        old_question_id = room.question.id
+        assert await room.use_powerup(player, "swap_question", "swap-1") == PowerUpStatus.USED
+        assert room.question.id != old_question_id
+        assert room.phase == RoomPhase.QUESTION_PREVIEW
+        assert (
+            await room.use_powerup(player, "swap_question", "swap-2") == PowerUpStatus.ALREADY_USED
+        )
+
+    async def test_powerup_command_is_idempotent(self):
+        room, events = make_room(turn_seconds=5)
+        await join_both(room)
+        await wait_for_phase(room, RoomPhase.ROUND_ACTIVE)
+        player = room.turn_user_id
+        first = await room.use_powerup(player, "extend_time", "same-command")
+        deadline = room.turn_deadline
+        second = await room.use_powerup(player, "extend_time", "same-command")
+        assert first == second == PowerUpStatus.USED
+        assert room.turn_deadline == deadline
+        assert len(events.of_type("powerup_used")) == 1
 
 
 class TestBestOfThree:

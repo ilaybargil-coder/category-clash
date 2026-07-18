@@ -9,7 +9,7 @@ import TimerBar from "./TimerBar";
 import type { GameState, PlayerInfo } from "@/lib/types";
 
 export default function GameRoom({ code }: { code: string }) {
-  const { state, status, rejection, clearRejection, submitAnswer } =
+  const { state, status, rejection, clearRejection, submitAnswer, usePowerup: triggerPowerup } =
     useGameSocket(code);
 
   if (status === "unauthorized") {
@@ -65,6 +65,7 @@ export default function GameRoom({ code }: { code: string }) {
       rejection={rejection}
       clearRejection={clearRejection}
       submitAnswer={submitAnswer}
+      triggerPowerup={triggerPowerup}
     />
   );
 }
@@ -93,17 +94,24 @@ function GameView({
   rejection,
   clearRejection,
   submitAnswer,
+  triggerPowerup,
 }: {
   state: GameState;
   reconnecting: boolean;
   rejection: string | null;
   clearRejection: () => void;
   submitAnswer: (text: string) => boolean;
+  triggerPowerup: (type: "swap_question" | "extend_time" | "use_joker") => boolean;
 }) {
   const me = state.players.find((p) => p.user_id === state.you);
   const opponent = state.players.find((p) => p.user_id !== state.you);
   const myTurn =
     state.phase === "ROUND_ACTIVE" && state.turn_user_id === state.you;
+  const myPowerups = state.powerups?.[String(state.you)] ?? {
+    swap_question: false,
+    extend_time: false,
+    joker: false,
+  };
 
   const [draft, setDraft] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -212,6 +220,12 @@ function GameView({
 
             <AnswerFeed answers={state.answers} myUserId={state.you} players={state.players} />
 
+            <div className="grid grid-cols-3 gap-2 border-t border-white/10 px-3 py-2 sm:px-5">
+              <PowerButton label="🔄 החלפה" available={myPowerups.swap_question} disabled={state.answers.length > 0 || !["QUESTION_PREVIEW", "ROUND_ACTIVE"].includes(state.phase)} onClick={() => triggerPowerup("swap_question")} />
+              <PowerButton label="⏱️ הארכה" available={myPowerups.extend_time} disabled={!myTurn} onClick={() => triggerPowerup("extend_time")} />
+              <PowerButton label="🃏 ג׳וקר" available={myPowerups.joker} disabled={!myTurn} onClick={() => triggerPowerup("use_joker")} />
+            </div>
+
             <form
               onSubmit={onSubmit}
               className="flex gap-2 border-t border-white/10 bg-black/20 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5"
@@ -261,6 +275,14 @@ function GameView({
         </Overlay>
       )}
     </main>
+  );
+}
+
+function PowerButton({ label, available, disabled, onClick }: { label: string; available: boolean; disabled: boolean; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} disabled={!available || disabled} className="rounded-lg border border-violet-400/20 bg-violet-500/10 px-2 py-2 text-xs font-bold text-violet-200 disabled:cursor-not-allowed disabled:opacity-30">
+      {label}{!available && " ✓"}
+    </button>
   );
 }
 

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { WS_URL, getToken } from "@/lib/api";
 import { applyServerEvent, type ServerEvent } from "@/lib/gameReducer";
-import type { PingCommand, SubmitAnswerCommand } from "@/lib/protocol.generated";
+import type { ClientCommand, PingCommand, SubmitAnswerCommand } from "@/lib/protocol.generated";
 import type { GameState } from "@/lib/types";
 
 export type ConnectionStatus =
@@ -182,5 +182,13 @@ export function useGameSocket(code: string) {
 
   const clearRejection = useCallback(() => setRejection(null), []);
 
-  return { state, status, rejection, clearRejection, submitAnswer };
+  const usePowerup = useCallback((type: "swap_question" | "extend_time" | "use_joker"): boolean => {
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+    const command = { type, client_command_id: crypto.randomUUID() } as ClientCommand;
+    ws.send(JSON.stringify(command));
+    return true;
+  }, []);
+
+  return { state, status, rejection, clearRejection, submitAnswer, usePowerup };
 }
