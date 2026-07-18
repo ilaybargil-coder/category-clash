@@ -91,7 +91,9 @@ export default function AnswerFeed({ answers, myUserId, players }: Props) {
                     wrong ? "line-through decoration-1" : ""
                   }`}
                 >
-                  {answer.raw_text}
+                  {answer.status === "VALID"
+                    ? (answer.canonical ?? answer.raw_text)
+                    : answer.raw_text}
                 </span>
               </div>
               <div
