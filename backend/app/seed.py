@@ -23,8 +23,50 @@ from .question_bank_expansion_v2 import (
 from .question_bank_expansion_v3 import (
     ANSWER_ALIAS_ADDITIONS_V3,
     ANSWER_GROUP_UPDATES_V3,
+    QUESTION_EXPANSION_SOURCES_V3,
     QUESTION_EXPANSIONS_V3,
 )
+from .question_bank_expansion_v4 import (
+    ANSWER_ALIAS_ADDITIONS_V4,
+    ANSWER_GROUP_UPDATES_V4,
+    QUESTION_EXPANSION_SOURCES_V4,
+    QUESTION_EXPANSIONS_V4,
+    QUESTION_POLICIES_V4,
+)
+from .question_bank_expansion_v5 import (
+    CURATION_SOURCES as CURATION_SOURCES_V5,
+)
+from .question_bank_expansion_v5 import (
+    EXPANSION_V5,
+)
+from .question_bank_expansion_v6 import (
+    CURATION_SOURCES as CURATION_SOURCES_V6,
+)
+from .question_bank_expansion_v6 import (
+    EXPANSION_V6,
+)
+
+# The V3 governance test audits the current QUESTIONS collection through the
+# V3 registries. Register later closed-set questions there without copying any
+# V4 answer data; their actual review policies and sources remain owned by V4.
+for v4_question_text in QUESTION_POLICIES_V4:
+    ANSWER_ALIAS_ADDITIONS_V3.setdefault(v4_question_text, {})
+    QUESTION_EXPANSION_SOURCES_V3.setdefault(
+        v4_question_text,
+        QUESTION_EXPANSION_SOURCES_V4[v4_question_text],
+    )
+
+# Keep the V3 all-question governance registry aware of later source-audited
+# batches.  V5 owns the current source records for its six target categories.
+for v5_question_text, v5_sources in CURATION_SOURCES_V5.items():
+    ANSWER_ALIAS_ADDITIONS_V3.setdefault(v5_question_text, {})
+    QUESTION_EXPANSION_SOURCES_V3.setdefault(v5_question_text, v5_sources)
+
+# V6 owns the source records for its ten new fun categories while the V3
+# governance registry continues to cover every question in the live bank.
+for v6_question_text, v6_sources in CURATION_SOURCES_V6.items():
+    ANSWER_ALIAS_ADDITIONS_V3.setdefault(v6_question_text, {})
+    QUESTION_EXPANSION_SOURCES_V3.setdefault(v6_question_text, v6_sources)
 
 DEMO_PASSWORD = "demo1234"
 
@@ -65,24 +107,6 @@ QUESTIONS: list[dict] = [
             ("קונסילר", [], None),
             ("ברונזר", [], None),
             ("ליפגלוס", ["גלוס"], None),
-        ],
-    },
-    {
-        "text": "כתבו שמות של מדינות באירופה",
-        "answers": [
-            ("צרפת", [], None),
-            ("גרמניה", [], None),
-            ("איטליה", [], None),
-            ("ספרד", [], None),
-            ("יוון", [], None),
-            ("פורטוגל", [], None),
-            ("הולנד", [], None),
-            ("בלגיה", [], None),
-            ("שוויץ", ["שווייץ"], None),
-            ("אנגליה", [], "uk"),
-            ("בריטניה", ["הממלכה המאוחדת"], "uk"),
-            ("פולין", [], None),
-            ("אוסטריה", [], None),
         ],
     },
     {
@@ -196,10 +220,23 @@ QUESTIONS: list[dict] = [
     },
 ]
 
+EUROPE_QUESTION_TEXT = "כתבו שמות של מדינות באירופה"
+EUROPE_COUNTRY_CANONICALS = {
+    canonical
+    for question in ADDITIONAL_QUESTIONS
+    if question["text"] == EUROPE_QUESTION_TEXT
+    for canonical, _aliases, _group in question["answers"]
+}
+EUROPE_ALLOWED_CANONICALS = EUROPE_COUNTRY_CANONICALS | {"טורקיה", "קוסובו"}
+
 QUESTIONS.extend(ADDITIONAL_QUESTIONS)
 
 for question in QUESTIONS:
-    question["answers"].extend(QUESTION_ENRICHMENTS.get(question["text"], []))
+    # Europe now owns its complete 44-state core plus two documented legacy
+    # policy extensions in question_bank.py.  The old enrichment also included
+    # constituent countries and Cyprus outside that policy.
+    if question["text"] != EUROPE_QUESTION_TEXT:
+        question["answers"].extend(QUESTION_ENRICHMENTS.get(question["text"], []))
     question["answers"].extend(QUESTION_EXPANSIONS_V2.get(question["text"], []))
 
     group_updates = ANSWER_GROUP_UPDATES_V2.get(question["text"], {})
@@ -233,6 +270,12 @@ QUESTIONS_BEFORE_CLAUDE_CORRECTIONS = QUESTIONS
 QUESTIONS = apply_corrections(QUESTIONS_BEFORE_CLAUDE_CORRECTIONS)
 
 for question in QUESTIONS:
+    if question["text"] == EUROPE_QUESTION_TEXT:
+        question["answers"] = [
+            answer for answer in question["answers"] if answer[0] in EUROPE_ALLOWED_CANONICALS
+        ]
+
+for question in QUESTIONS:
     group_updates_v3 = ANSWER_GROUP_UPDATES_V3.get(question["text"], {})
     if group_updates_v3:
         question["answers"] = [
@@ -250,6 +293,61 @@ for question in QUESTIONS:
                 f"V3 alias expansion targets missing answer {canonical!r} "
                 f"in question {question['text']!r}"
             )
+        for alias in aliases:
+            if alias != canonical and alias not in target:
+                target.append(alias)
+
+    existing_canonicals = {canonical for canonical, _aliases, _group in question["answers"]}
+    for canonical, aliases, group in QUESTION_EXPANSIONS_V4.get(question["text"], []):
+        if canonical not in existing_canonicals:
+            question["answers"].append((canonical, list(aliases), group))
+            existing_canonicals.add(canonical)
+
+    group_updates_v4 = ANSWER_GROUP_UPDATES_V4.get(question["text"], {})
+    if group_updates_v4:
+        question["answers"] = [
+            (canonical, aliases, group_updates_v4.get(canonical, group))
+            for canonical, aliases, group in question["answers"]
+        ]
+
+    answers_by_canonical_v4 = {
+        canonical: aliases for canonical, aliases, _group in question["answers"]
+    }
+    for canonical, aliases in ANSWER_ALIAS_ADDITIONS_V4.get(question["text"], {}).items():
+        target = answers_by_canonical_v4.get(canonical)
+        if target is None:
+            raise ValueError(
+                f"V4 alias expansion targets missing answer {canonical!r} "
+                f"in question {question['text']!r}"
+            )
+        for alias in aliases:
+            if alias != canonical and alias not in target:
+                target.append(alias)
+
+    answers_by_canonical_v5 = {
+        canonical: aliases for canonical, aliases, _group in question["answers"]
+    }
+    for canonical, aliases, group in EXPANSION_V5.get(question["text"], []):
+        target = answers_by_canonical_v5.get(canonical)
+        if target is None:
+            copied_aliases = list(aliases)
+            question["answers"].append((canonical, copied_aliases, group))
+            answers_by_canonical_v5[canonical] = copied_aliases
+            continue
+        for alias in aliases:
+            if alias != canonical and alias not in target:
+                target.append(alias)
+
+    answers_by_canonical_v6 = {
+        canonical: aliases for canonical, aliases, _group in question["answers"]
+    }
+    for canonical, aliases, group in EXPANSION_V6.get(question["text"], []):
+        target = answers_by_canonical_v6.get(canonical)
+        if target is None:
+            copied_aliases = list(aliases)
+            question["answers"].append((canonical, copied_aliases, group))
+            answers_by_canonical_v6[canonical] = copied_aliases
+            continue
         for alias in aliases:
             if alias != canonical and alias not in target:
                 target.append(alias)
@@ -291,6 +389,15 @@ LEGACY_ALIAS_REMOVALS: dict[str, dict[str, list[str]]] = {
     if correction.get("remove_aliases")
 }
 
+LEGACY_CANONICAL_DEACTIVATIONS: dict[str, set[str]] = {
+    EUROPE_QUESTION_TEXT: {
+        "אנגליה",
+        "סקוטלנד",
+        "ויילס",
+        "קפריסין",
+    },
+}
+
 
 async def seed() -> None:
     async with SessionLocal() as session:
@@ -329,6 +436,11 @@ async def seed() -> None:
                 existing_questions[q["text"]] = question
 
             answers_by_canonical = {answer.canonical: answer for answer in question.answers}
+            for canonical in LEGACY_CANONICAL_DEACTIVATIONS.get(q["text"], set()):
+                legacy_answer = answers_by_canonical.get(canonical)
+                if legacy_answer is not None:
+                    legacy_answer.is_active = False
+
             for old_canonical, new_canonical in LEGACY_CANONICAL_RENAMES.get(q["text"], {}).items():
                 legacy_answer = answers_by_canonical.get(old_canonical)
                 if legacy_answer is not None and new_canonical not in answers_by_canonical:

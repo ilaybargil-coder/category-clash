@@ -72,6 +72,14 @@ function GameActions({ user }: { user: SessionUser | null }) {
           </button>
           <button
             type="button"
+            onClick={() => router.push("/daily")}
+            disabled={!user}
+            className="secondary-button w-full px-6 py-3.5 sm:w-auto"
+          >
+            האתגר היומי ⚡
+          </button>
+          <button
+            type="button"
             onClick={() => router.push("/solo")}
             disabled={!user}
             className="secondary-button w-full px-6 py-3.5 sm:w-auto"

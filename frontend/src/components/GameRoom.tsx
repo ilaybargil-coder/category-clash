@@ -214,7 +214,7 @@ function GameView({
               <PlayerBadge player={opponent} points={pointsOf(opponent?.user_id)} />
             </div>
 
-            <section className="mx-3 shrink-0 rounded-xl bg-[#f7f0df] px-4 py-3 text-center text-slate-900 shadow-[0_8px_30px_rgba(0,0,0,0.22)] sm:mx-5 sm:px-7 sm:py-4">
+            <section className="game-question mx-3 shrink-0 rounded-xl bg-[#f7f0df] px-4 py-3 text-center text-slate-900 shadow-[0_8px_30px_rgba(0,0,0,0.22)] sm:mx-5 sm:px-7 sm:py-4">
               <p className="text-[10px] font-bold text-slate-500 sm:text-xs">קטגוריה</p>
               <h1 className="mt-1 min-h-12 text-lg font-black leading-snug sm:text-2xl">
                 {state.question?.text ?? "ממתינים לשאלה..."}

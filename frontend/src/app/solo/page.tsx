@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useViewportHeight } from "@/hooks/useViewportHeight";
 import {
   ApiError,
   endSolo,
@@ -26,6 +27,8 @@ interface Feedback {
 }
 
 export default function SoloPage() {
+  useViewportHeight();
+
   const router = useRouter();
   const [question, setQuestion] = useState<SoloQuestion | null>(null);
   const [draft, setDraft] = useState("");
@@ -37,6 +40,7 @@ export default function SoloPage() {
   const [totalFound, setTotalFound] = useState(0);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const startedRef = useRef(false);
   const revealingRef = useRef(false);
   const feedbackId = useRef(0);
@@ -109,6 +113,7 @@ export default function SoloPage() {
         setSecondsLeft(TURN_SECONDS);
       }
       setDraft("");
+      requestAnimationFrame(() => inputRef.current?.focus({ preventScroll: true }));
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : "שליחת התשובה נכשלה");
     } finally {
@@ -129,6 +134,7 @@ export default function SoloPage() {
       setDraft("");
       setSecondsLeft(TURN_SECONDS);
       setQuestionsPlayed((value) => value + 1);
+      requestAnimationFrame(() => inputRef.current?.focus({ preventScroll: true }));
     } catch (cause) {
       if (cause instanceof ApiError && cause.status === 409) {
         setMessage("סיימת את כל מאגר השאלות — כל הכבוד!");
@@ -164,9 +170,13 @@ export default function SoloPage() {
   }
 
   return (
-    <main dir="rtl" className="app-background min-h-dvh p-2 sm:p-4">
-      <div className="surface-panel mx-auto flex min-h-[calc(100dvh-1rem)] max-w-2xl flex-col overflow-hidden rounded-2xl sm:min-h-[calc(100dvh-2rem)]">
-      <header className="border-b border-white/10 bg-violet-600/10 px-5 py-5 text-white">
+    <main
+      dir="rtl"
+      className="app-background overflow-hidden p-2 sm:p-4"
+      style={{ height: "var(--app-vh, 100dvh)" }}
+    >
+      <div className="surface-panel mx-auto flex h-full min-h-0 max-w-2xl flex-col overflow-hidden rounded-2xl">
+      <header className="shrink-0 border-b border-white/10 bg-violet-600/10 px-5 py-5 text-white">
         <div className="flex items-center justify-between text-sm font-bold text-violet-100">
           <span>משחק יחיד 🎯</span>
           <span>שאלות: {questionsPlayed} · תשובות: {totalFound}</span>
@@ -182,7 +192,7 @@ export default function SoloPage() {
         )}
       </header>
 
-      <section className="flex-1 space-y-4 overflow-y-auto p-4">
+      <section className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
         <div className="rounded-xl border border-white/10 bg-white/[0.025] p-4">
           <p className="text-lg font-black text-white">נמצאו {foundCanonicals.length} מתוך {question.total_answers}</p>
           {foundCanonicals.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{foundCanonicals.map((answer) => <span key={answer} className="rounded-full bg-emerald-500/15 px-3 py-1 text-sm font-bold text-emerald-300">{answer}</span>)}</div>}
@@ -206,15 +216,15 @@ export default function SoloPage() {
       </section>
 
       {!revealed ? (
-        <div className="border-t border-white/10 bg-black/20 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <div className="shrink-0 border-t border-white/10 bg-black/20 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <form onSubmit={onSubmit} className="flex gap-2">
-            <input autoFocus value={draft} onChange={(event) => setDraft(event.target.value)} disabled={busy} maxLength={60} placeholder="כתבו תשובה…" className="dark-input min-w-0 flex-1 py-2.5" />
+            <input ref={inputRef} autoFocus value={draft} onChange={(event) => setDraft(event.target.value)} disabled={busy} maxLength={60} placeholder="כתבו תשובה…" className="dark-input min-w-0 flex-1 py-2.5" />
             <button disabled={busy || !draft.trim()} className="primary-button px-6 disabled:opacity-40">שליחה</button>
           </form>
           <button onClick={() => void onReveal()} disabled={busy} className="mt-3 w-full py-2 text-sm font-bold text-slate-500 disabled:opacity-40">סיימתי / חשיפת תשובות</button>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3 border-t border-white/10 bg-black/20 p-4">
+        <div className="grid shrink-0 grid-cols-2 gap-3 border-t border-white/10 bg-black/20 p-4">
           <button onClick={() => void onNext()} disabled={busy} className="primary-button py-3 disabled:opacity-40">שאלה הבאה</button>
           <button onClick={() => void backToLobby()} className="secondary-button py-3">חזרה ללובי</button>
         </div>

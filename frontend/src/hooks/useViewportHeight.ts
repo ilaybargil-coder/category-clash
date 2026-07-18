@@ -12,6 +12,12 @@ export function useViewportHeight() {
     const updateHeight = () => {
       const height = viewport?.height ?? window.innerHeight;
       root.style.setProperty("--app-vh", `${Math.round(height)}px`);
+
+      if (viewport && window.innerHeight - viewport.height > 120) {
+        root.dataset.kb = "open";
+      } else {
+        delete root.dataset.kb;
+      }
     };
 
     const scheduleUpdate = (resetScroll = false) => {
@@ -49,6 +55,7 @@ export function useViewportHeight() {
         window.removeEventListener("resize", handleResize);
       }
       root.style.removeProperty("--app-vh");
+      delete root.dataset.kb;
     };
   }, []);
 }

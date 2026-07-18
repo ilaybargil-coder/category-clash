@@ -298,6 +298,48 @@
   .answer-own-valid__mark {
     animation: answer-valid-mark 420ms 80ms cubic-bezier(0.2, 0.9, 0.3, 1.35) both;
   }
+
+  .game-question {
+    transition: padding-block 160ms ease;
+  }
+
+  .game-question > h1 {
+    transition: margin-top 160ms ease, min-height 160ms ease, font-size 160ms ease;
+  }
+
+  .game-question > h1 + div,
+  .game-question > h1 + div + p {
+    transition: margin-top 160ms ease, min-height 160ms ease;
+  }
+
+  html[data-kb="open"] .game-question {
+    padding-block: 0.5rem;
+  }
+
+  html[data-kb="open"] .game-question > h1 {
+    margin-top: 0.125rem;
+    min-height: 2rem;
+    font-size: 1rem;
+  }
+
+  html[data-kb="open"] .game-question > h1 + div {
+    margin-top: 0.25rem;
+  }
+
+  html[data-kb="open"] .game-question > h1 + div + p {
+    margin-top: 0;
+    min-height: 1rem;
+  }
+
+  .surface-panel > .answer-feed {
+    min-height: 6rem;
+  }
+
+  @media (min-width: 640px) {
+    html[data-kb="open"] .game-question > h1 {
+      font-size: 1.25rem;
+    }
+  }
 }
 
 @keyframes timer-heartbeat {
@@ -350,5 +392,12 @@
   .answer-own-valid,
   .answer-own-valid__mark {
     animation: none;
+  }
+
+  .game-question,
+  .game-question > h1,
+  .game-question > h1 + div,
+  .game-question > h1 + div + p {
+    transition: none;
   }
 }
