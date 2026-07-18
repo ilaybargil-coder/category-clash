@@ -23,8 +23,26 @@ from .question_bank_expansion_v2 import (
 from .question_bank_expansion_v3 import (
     ANSWER_ALIAS_ADDITIONS_V3,
     ANSWER_GROUP_UPDATES_V3,
+    QUESTION_EXPANSION_SOURCES_V3,
     QUESTION_EXPANSIONS_V3,
 )
+from .question_bank_expansion_v4 import (
+    ANSWER_ALIAS_ADDITIONS_V4,
+    ANSWER_GROUP_UPDATES_V4,
+    QUESTION_EXPANSION_SOURCES_V4,
+    QUESTION_EXPANSIONS_V4,
+    QUESTION_POLICIES_V4,
+)
+
+# The V3 governance test audits the current QUESTIONS collection through the
+# V3 registries. Register later closed-set questions there without copying any
+# V4 answer data; their actual review policies and sources remain owned by V4.
+for v4_question_text in QUESTION_POLICIES_V4:
+    ANSWER_ALIAS_ADDITIONS_V3.setdefault(v4_question_text, {})
+    QUESTION_EXPANSION_SOURCES_V3.setdefault(
+        v4_question_text,
+        QUESTION_EXPANSION_SOURCES_V4[v4_question_text],
+    )
 
 DEMO_PASSWORD = "demo1234"
 
@@ -248,6 +266,33 @@ for question in QUESTIONS:
         if target is None:
             raise ValueError(
                 f"V3 alias expansion targets missing answer {canonical!r} "
+                f"in question {question['text']!r}"
+            )
+        for alias in aliases:
+            if alias != canonical and alias not in target:
+                target.append(alias)
+
+    existing_canonicals = {canonical for canonical, _aliases, _group in question["answers"]}
+    for canonical, aliases, group in QUESTION_EXPANSIONS_V4.get(question["text"], []):
+        if canonical not in existing_canonicals:
+            question["answers"].append((canonical, list(aliases), group))
+            existing_canonicals.add(canonical)
+
+    group_updates_v4 = ANSWER_GROUP_UPDATES_V4.get(question["text"], {})
+    if group_updates_v4:
+        question["answers"] = [
+            (canonical, aliases, group_updates_v4.get(canonical, group))
+            for canonical, aliases, group in question["answers"]
+        ]
+
+    answers_by_canonical_v4 = {
+        canonical: aliases for canonical, aliases, _group in question["answers"]
+    }
+    for canonical, aliases in ANSWER_ALIAS_ADDITIONS_V4.get(question["text"], {}).items():
+        target = answers_by_canonical_v4.get(canonical)
+        if target is None:
+            raise ValueError(
+                f"V4 alias expansion targets missing answer {canonical!r} "
                 f"in question {question['text']!r}"
             )
         for alias in aliases:
