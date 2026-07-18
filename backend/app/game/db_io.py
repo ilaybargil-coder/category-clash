@@ -118,6 +118,16 @@ class DbResultSink(ResultSink):
             )
             await session.commit()
 
+    async def on_question_swap(self, code: str, round_no: int, question_id: int) -> None:
+        round_id = self._round_ids.get((code, round_no))
+        if round_id is None:
+            return
+        async with self._sf() as session:
+            await session.execute(
+                update(Round).where(Round.id == round_id).values(question_id=question_id)
+            )
+            await session.commit()
+
     async def on_round_end(self, code: str, round_no: int, winner_id: int, reason: str) -> None:
         round_id = self._round_ids.get((code, round_no))
         if round_id is None:

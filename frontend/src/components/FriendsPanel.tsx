@@ -33,6 +33,7 @@ export default function FriendsPanel() {
   const [requests, setRequests] = useState<FriendRequests>(EMPTY_REQUESTS);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<UserSearchResult[]>([]);
+  const [searchedQuery, setSearchedQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [confirmRemoveId, setConfirmRemoveId] = useState<number | null>(null);
@@ -135,7 +136,10 @@ export default function FriendsPanel() {
     let active = true;
     searchUsers(debouncedQuery)
       .then((users) => {
-        if (active) setResults(users);
+        if (active) {
+          setResults(users);
+          setSearchedQuery(debouncedQuery);
+        }
       })
       .catch((cause) => {
         if (active) {
@@ -146,6 +150,8 @@ export default function FriendsPanel() {
       active = false;
     };
   }, [debouncedQuery, searchVersion]);
+
+  const searching = debouncedQuery.length >= 2 && searchedQuery !== debouncedQuery;
 
   useEffect(() => {
     if (confirmRemoveId === null) return;
@@ -186,6 +192,23 @@ export default function FriendsPanel() {
       const incoming = requests.incoming.find((request) => request.user.id === user.id);
       if (incoming) return accept(incoming.id);
     }
+  }
+
+  function submitFriendSearch(event: React.FormEvent) {
+    event.preventDefault();
+    const username = query.trim().replace(/^@/, "");
+    if (username.length < 2) {
+      setError("הקלידו לפחות שני תווים משם המשתמש");
+      return;
+    }
+    const exact = results.find(
+      (user) => user.username.toLowerCase() === username.toLowerCase()
+    );
+    if (exact) {
+      void addFromSearch(exact);
+      return;
+    }
+    void mutate(`username-${username}`, () => sendFriendRequest(username));
   }
 
   function unfriend(friendId: number) {
@@ -234,7 +257,7 @@ export default function FriendsPanel() {
   }
 
   return (
-    <section className="surface-panel rounded-2xl p-5 sm:p-6">
+    <section id="friends" className="surface-panel scroll-mt-4 rounded-2xl p-5 sm:p-6">
       <h2 className="text-2xl font-black text-white">חברים</h2>
 
       {error && (
@@ -321,6 +344,23 @@ export default function FriendsPanel() {
         </div>
       )}
 
+      {requests.outgoing.length > 0 && (
+        <div className="mt-5">
+          <h3 className="mb-3 font-black text-white">בקשות ששלחת</h3>
+          <div className="space-y-2">
+            {requests.outgoing.map((request) => (
+              <div key={request.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.025] p-3">
+                <div>
+                  <p className="font-black">{request.user.display_name}</p>
+                  <p dir="ltr" className="text-left text-xs text-slate-400">@{request.user.username}</p>
+                </div>
+                <span className="rounded-full bg-amber-400/10 px-3 py-1.5 text-xs font-bold text-amber-300">ממתינה לאישור</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="mt-5">
         <h3 className="mb-3 font-black text-white">החברים שלי</h3>
         {loading ? (
@@ -360,16 +400,14 @@ export default function FriendsPanel() {
                   </p>
                 </div>
                 <div className="flex shrink-0 flex-col gap-2">
-                  {onlineFriendIds.has(friend.id) && (
-                    <button
-                      type="button"
-                      onClick={() => void inviteFriend(friend)}
-                      disabled={busyKey !== null}
-                      className="rounded-full bg-violet-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-50"
-                    >
-                      הזמנה למשחק
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => void inviteFriend(friend)}
+                    disabled={busyKey !== null}
+                    className="rounded-full bg-violet-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-50"
+                  >
+                    {busyKey === `invite-${friend.id}` ? "שולחים…" : "הזמנה למשחק"}
+                  </button>
                   <button
                     type="button"
                     onClick={() => unfriend(friend.id)}
@@ -391,19 +429,34 @@ export default function FriendsPanel() {
 
       <div className="mt-6 border-t border-white/10 pt-5">
         <h3 className="mb-3 font-black text-white">הוספת חברים</h3>
-        <input
-          value={query}
-          onChange={(event) => {
-            setQuery(event.target.value);
-            setResults([]);
-          }}
-          placeholder="חיפוש לפי שם משתמש…"
-          dir="ltr"
-          autoCapitalize="none"
-          autoCorrect="off"
-          spellCheck={false}
-          className="dark-input text-left"
-        />
+        <form onSubmit={submitFriendSearch} className="flex flex-col gap-2 sm:flex-row">
+          <input
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setResults([]);
+              setSearchedQuery("");
+              setError(null);
+            }}
+            placeholder="שם המשתמש המדויק, למשל ilay_123"
+            aria-label="שם משתמש להוספת חבר"
+            dir="ltr"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            className="dark-input min-w-0 flex-1 text-left"
+          />
+          <button type="submit" disabled={query.trim().length < 2 || busyKey !== null} className="primary-button min-h-12 px-6 disabled:opacity-40">
+            {busyKey?.startsWith("username-") ? "שולחים…" : "שליחת בקשה"}
+          </button>
+        </form>
+        <p className="mt-2 text-xs text-slate-500">אפשר לבחור מתוצאות החיפוש או לשלוח ישירות לפי שם משתמש מדויק.</p>
+        {searching && <p className="mt-3 text-sm text-slate-400">מחפשים משתמשים…</p>}
+        {!searching && searchedQuery && results.length === 0 && (
+          <p className="mt-3 rounded-xl border border-amber-400/15 bg-amber-400/5 p-3 text-sm text-amber-200">
+            לא נמצאו הצעות עבור “{searchedQuery}”. אם זה שם המשתמש המדויק, לחצו על “שליחת בקשה”.
+          </p>
+        )}
         {results.length > 0 && (
           <div className="mt-3 space-y-2">
             {results.map((user) => (

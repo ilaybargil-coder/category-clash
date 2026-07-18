@@ -65,6 +65,11 @@ export interface GameState {
   last_round_result: RoundResult | null;
   match_winner_id: number | null;
   match_end_reason: string | null;
+  powerups: Record<string, {
+    swap_question: boolean;
+    extend_time: boolean;
+    joker: boolean;
+  }>;
   /** offset (serverNow - clientNow) so timers render off the server clock */
   clock_offset_ms: number;
 }

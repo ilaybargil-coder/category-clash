@@ -7,7 +7,15 @@ from .config import settings
 from .db import SessionLocal
 from .game.manager import room_manager
 from .game.validator import AnswerStatus
-from .protocol import PingCommand, SubmitAnswerCommand, make_server_event, parse_client_command
+from .protocol import (
+    ExtendTimeCommand,
+    PingCommand,
+    SubmitAnswerCommand,
+    SwapQuestionCommand,
+    UseJokerCommand,
+    make_server_event,
+    parse_client_command,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -126,6 +134,25 @@ async def room_websocket(ws: WebSocket, code: str, token: str = Query(...)):
                         match_id=room.code,
                     ),
                 )
+            elif isinstance(command, (SwapQuestionCommand, ExtendTimeCommand, UseJokerCommand)):
+                names = {
+                    SwapQuestionCommand: "swap_question",
+                    ExtendTimeCommand: "extend_time",
+                    UseJokerCommand: "joker",
+                }
+                command_id = str(command.client_command_id)
+                result = await room.use_powerup(user.id, names[type(command)], command_id)
+                if result.value != "USED":
+                    await room_manager.send(
+                        ws,
+                        make_server_event(
+                            "action_rejected",
+                            seq=room.event_sequence,
+                            match_id=room.code,
+                            status=result.value,
+                            client_command_id=command_id,
+                        ),
+                    )
     except WebSocketDisconnect:
         pass
     finally:

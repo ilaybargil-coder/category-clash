@@ -27,7 +27,27 @@ class PingCommand(BaseModel):
     type: Literal["ping"]
 
 
-ClientCommand = SubmitAnswerCommand | PingCommand
+class SwapQuestionCommand(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    type: Literal["swap_question"]
+    client_command_id: uuid.UUID
+
+
+class ExtendTimeCommand(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    type: Literal["extend_time"]
+    client_command_id: uuid.UUID
+
+
+class UseJokerCommand(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    type: Literal["use_joker"]
+    client_command_id: uuid.UUID
+
+
+ClientCommand = (
+    SubmitAnswerCommand | SwapQuestionCommand | ExtendTimeCommand | UseJokerCommand | PingCommand
+)
 
 
 class ServerEventEnvelope(BaseModel):
@@ -53,6 +73,12 @@ def parse_client_command(message: object) -> ClientCommand:
             return SubmitAnswerCommand.model_validate(message)
         if command_type == "ping":
             return PingCommand.model_validate(message)
+        if command_type == "swap_question":
+            return SwapQuestionCommand.model_validate(message)
+        if command_type == "extend_time":
+            return ExtendTimeCommand.model_validate(message)
+        if command_type == "use_joker":
+            return UseJokerCommand.model_validate(message)
         raise ValueError("unknown command type")
     except ValidationError as exc:
         raise ValueError("invalid command payload") from exc

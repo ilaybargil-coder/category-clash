@@ -45,6 +45,12 @@ class MatchEndReason(str, Enum):
     FORFEIT = "FORFEIT"
 
 
+class PowerUpStatus(str, Enum):
+    USED = "USED"
+    ALREADY_USED = "ALREADY_USED"
+    NOT_AVAILABLE = "NOT_AVAILABLE"
+
+
 @dataclass
 class GameConfig:
     turn_seconds: float = 15.0
@@ -87,6 +93,7 @@ class ResultSink:
     async def on_round_start(
         self, code: str, round_no: int, question_id: int, starter_id: int
     ) -> None: ...
+    async def on_question_swap(self, code: str, round_no: int, question_id: int) -> None: ...
     async def on_answer(
         self,
         code: str,
@@ -146,12 +153,15 @@ class GameRoom:
 
         self._seq = 0
         self._timer_gen = 0
+        self._preview_gen = 0
         self._forfeit_gens: dict[int, int] = {}
         self._tasks: set[asyncio.Task] = set()
         # Idempotency: (user_id, client_command_id) -> status of the processed
         # submission, so a client retry / double-click never creates a second
         # record or a second event.
         self._processed_commands: dict[tuple[int, str], AnswerStatus] = {}
+        self.powerups_used: dict[int, set[str]] = {}
+        self._processed_powerups: dict[tuple[int, str], PowerUpStatus] = {}
 
     # ---------------------------------------------------------------- utils
 
@@ -238,6 +248,14 @@ class GameRoom:
             last_round_result=self.last_round_result,
             match_winner_id=self.match_winner_id,
             match_end_reason=(self.match_end_reason.value if self.match_end_reason else None),
+            powerups={
+                str(uid): {
+                    "swap_question": "swap_question" not in self.powerups_used.get(uid, set()),
+                    "extend_time": "extend_time" not in self.powerups_used.get(uid, set()),
+                    "joker": "joker" not in self.powerups_used.get(uid, set()),
+                }
+                for uid in self.order
+            },
         )
 
     # ------------------------------------------------------------ join/leave
@@ -261,6 +279,7 @@ class GameRoom:
             self.players[user_id] = Player(user_id, username, display_name)
             self.order.append(user_id)
             self.score[user_id] = 0
+            self.powerups_used[user_id] = set()
             await self._emit("player_joined", players=self._players_payload())
 
             if len(self.players) == 2:
@@ -360,12 +379,17 @@ class GameRoom:
             preview_seconds=self.config.preview_seconds,
             score=self._score_payload(),
         )
-        self._spawn(self._preview_then_activate(self.round_no))
+        self._preview_gen += 1
+        self._spawn(self._preview_then_activate(self.round_no, self._preview_gen))
 
-    async def _preview_then_activate(self, round_no: int) -> None:
+    async def _preview_then_activate(self, round_no: int, preview_gen: int) -> None:
         await asyncio.sleep(self.config.preview_seconds)
         async with self.lock:
-            if self.phase != RoomPhase.QUESTION_PREVIEW or self.round_no != round_no:
+            if (
+                self.phase != RoomPhase.QUESTION_PREVIEW
+                or self.round_no != round_no
+                or self._preview_gen != preview_gen
+            ):
                 return
             self.phase = RoomPhase.ROUND_ACTIVE
             self._arm_timer_locked()
@@ -535,6 +559,99 @@ class GameRoom:
                 deadline_epoch_ms=self._deadline_epoch_ms(),
             )
             return result.status
+
+    # ------------------------------------------------------------ power-ups
+
+    def _powerup_result(self, user_id: int, name: str, command_id: str) -> PowerUpStatus | None:
+        cached = self._processed_powerups.get((user_id, command_id))
+        if cached is not None:
+            return cached
+        if name in self.powerups_used.get(user_id, set()):
+            return PowerUpStatus.ALREADY_USED
+        return None
+
+    async def use_powerup(self, user_id: int, name: str, client_command_id: str) -> PowerUpStatus:
+        async with self.lock:
+            cached = self._powerup_result(user_id, name, client_command_id)
+            if cached is not None:
+                return cached
+
+            available = (
+                user_id in self.players
+                and self.phase == RoomPhase.ROUND_ACTIVE
+                and self.turn_user_id == user_id
+            )
+            if name == "swap_question":
+                available = (
+                    user_id in self.players
+                    and self.phase in (RoomPhase.QUESTION_PREVIEW, RoomPhase.ROUND_ACTIVE)
+                    and not self.answers
+                )
+            if not available:
+                status = PowerUpStatus.NOT_AVAILABLE
+                self._processed_powerups[(user_id, client_command_id)] = status
+                return status
+
+            if name == "swap_question":
+                question = await self._provider(set(self.used_question_ids))
+                if question is None:
+                    status = PowerUpStatus.NOT_AVAILABLE
+                    self._processed_powerups[(user_id, client_command_id)] = status
+                    return status
+                self._timer_gen += 1
+                self.turn_deadline = None
+                self.used_question_ids.add(question.id)
+                self.question = question
+                self.validator = RoundValidator(
+                    question.index,
+                    max_length=self.config.max_answer_length,
+                    fuzzy_enabled=self.config.fuzzy_matching_enabled,
+                    fuzzy_max_distance=self.config.fuzzy_max_distance,
+                    fuzzy_min_length=self.config.fuzzy_min_length,
+                    unique_prefix_enabled=self.config.unique_prefix_matching_enabled,
+                    unique_prefix_min_length=self.config.unique_prefix_min_length,
+                    definite_article_enabled=self.config.definite_article_matching_enabled,
+                )
+                self.phase = RoomPhase.QUESTION_PREVIEW
+                await self._sink_safe(
+                    self._sink.on_question_swap(self.code, self.round_no, question.id)
+                )
+                self._preview_gen += 1
+                self._spawn(self._preview_then_activate(self.round_no, self._preview_gen))
+            elif name == "extend_time":
+                if self.turn_deadline is None:
+                    return PowerUpStatus.NOT_AVAILABLE
+                self._timer_gen += 1
+                self.turn_deadline += self.config.turn_seconds
+                self._spawn(self._watch_timer(self._timer_gen, self.turn_deadline))
+            elif name == "joker":
+                self.turn_user_id = self._other(user_id)
+                self._arm_timer_locked()
+            else:
+                return PowerUpStatus.NOT_AVAILABLE
+
+            self.powerups_used[user_id].add(name)
+            status = PowerUpStatus.USED
+            self._processed_powerups[(user_id, client_command_id)] = status
+            await self._emit(
+                "powerup_used",
+                user_id=user_id,
+                powerup=name,
+                question={"id": self.question.id, "text": self.question.text},
+                phase=self.phase.value,
+                turn_user_id=self.turn_user_id,
+                deadline_epoch_ms=self._deadline_epoch_ms(),
+                powerups={
+                    str(uid): {
+                        "swap_question": "swap_question" not in self.powerups_used.get(uid, set()),
+                        "extend_time": "extend_time" not in self.powerups_used.get(uid, set()),
+                        "joker": "joker" not in self.powerups_used.get(uid, set()),
+                    }
+                    for uid in self.order
+                },
+                client_command_id=client_command_id,
+            )
+            return status
 
     # --------------------------------------------------------------- helpers
 

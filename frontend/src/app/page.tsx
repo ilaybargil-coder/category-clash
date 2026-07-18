@@ -45,6 +45,7 @@ function GameActions({ user }: { user: SessionUser | null }) {
 
   return (
     <section
+      id="play"
       className={`surface-panel overflow-hidden rounded-2xl ${
         user ? "" : "pointer-events-none opacity-40"
       }`}
@@ -118,7 +119,7 @@ function StatsStrip({ user }: { user: SessionUser }) {
   const games = user.wins + user.losses;
   const rate = games ? Math.round((user.wins / games) * 100) : 0;
   return (
-    <section className="grid grid-cols-3 gap-2 sm:gap-3">
+    <section id="stats" className="grid scroll-mt-4 grid-cols-3 gap-2 sm:gap-3">
       {[
         ["ניצחונות", user.wins],
         ["אחוז הצלחה", `${rate}%`],
@@ -135,7 +136,7 @@ function StatsStrip({ user }: { user: SessionUser }) {
 
 function ProfilePanel({ user }: { user: SessionUser }) {
   return (
-    <aside className="surface-panel hidden rounded-2xl p-5 xl:block">
+    <aside id="profile" className="surface-panel hidden scroll-mt-4 rounded-2xl p-5 xl:block">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-black text-white">הפרופיל שלך</h2>
         <CoinPill coins={user.coins} />
