@@ -3,7 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { WS_URL, getToken } from "@/lib/api";
 import { applyServerEvent, type ServerEvent } from "@/lib/gameReducer";
-import type { ClientCommand, PingCommand, SubmitAnswerCommand } from "@/lib/protocol.generated";
+import type {
+  ClientCommand,
+  PingCommand,
+  RequestRematchCommand,
+  SubmitAnswerCommand,
+} from "@/lib/protocol.generated";
 import type { GameState } from "@/lib/types";
 
 export type ConnectionStatus =
@@ -194,13 +199,23 @@ export function useGameSocket(code: string) {
     return true;
   }, []);
 
+  const requestRematch = useCallback((): boolean => {
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+    const command = { type: "request_rematch" } satisfies RequestRematchCommand;
+    ws.send(JSON.stringify(command));
+    return true;
+  }, []);
+
   return {
     state,
+    rematch: state?.rematch ?? null,
     stateSyncRevision,
     status,
     rejection,
     clearRejection,
     submitAnswer,
     usePowerup,
+    requestRematch,
   };
 }

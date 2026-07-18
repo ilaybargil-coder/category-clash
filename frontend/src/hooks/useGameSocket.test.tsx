@@ -134,6 +134,18 @@ describe("useGameSocket lifecycle", () => {
     expect(commands[0].client_command_id).toBe(commands[1].client_command_id);
   });
 
+  it("sends a rematch request while connected", () => {
+    const { result } = renderHook(() => useGameSocket("ROOM1"));
+    const socket = FakeWebSocket.instances[0];
+    act(() => socket.open());
+
+    act(() => expect(result.current.requestRematch()).toBe(true));
+
+    expect(socket.sent.map((raw) => JSON.parse(raw))).toContainEqual({
+      type: "request_rematch",
+    });
+  });
+
   it("sends application heartbeat pings while connected", () => {
     renderHook(() => useGameSocket("ROOM1"));
     const socket = FakeWebSocket.instances[0];

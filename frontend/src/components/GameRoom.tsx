@@ -20,6 +20,7 @@ export default function GameRoom({ code }: { code: string }) {
     clearRejection,
     submitAnswer,
     usePowerup: triggerPowerup,
+    requestRematch,
   } = useGameSocket(code);
 
   if (status === "unauthorized") {
@@ -77,6 +78,7 @@ export default function GameRoom({ code }: { code: string }) {
       clearRejection={clearRejection}
       submitAnswer={submitAnswer}
       triggerPowerup={triggerPowerup}
+      requestRematch={requestRematch}
     />
   );
 }
@@ -107,6 +109,7 @@ function GameView({
   clearRejection,
   submitAnswer,
   triggerPowerup,
+  requestRematch,
 }: {
   state: GameState;
   stateSyncRevision: number;
@@ -115,6 +118,7 @@ function GameView({
   clearRejection: () => void;
   submitAnswer: (text: string) => boolean;
   triggerPowerup: (type: "swap_question" | "extend_time" | "use_joker") => boolean;
+  requestRematch: () => boolean;
 }) {
   const me = state.players.find((p) => p.user_id === state.you);
   const opponent = state.players.find((p) => p.user_id !== state.you);
@@ -306,7 +310,13 @@ function GameView({
       {state.phase === "ROUND_FINISHED" && state.last_round_result && (
         <RoundResultOverlay state={state} />
       )}
-      {state.phase === "MATCH_FINISHED" && <MatchResultOverlay state={state} />}
+      {state.phase === "MATCH_FINISHED" && (
+        <MatchResultOverlay
+          state={state}
+          reconnecting={reconnecting}
+          requestRematch={requestRematch}
+        />
+      )}
       {state.phase === "ABANDONED" && (
         <Overlay>
           <h2 className="text-2xl font-black">המשחק בוטל</h2>
@@ -506,11 +516,24 @@ function RoundResultOverlay({ state }: { state: GameState }) {
   );
 }
 
-function MatchResultOverlay({ state }: { state: GameState }) {
+function MatchResultOverlay({
+  state,
+  reconnecting,
+  requestRematch,
+}: {
+  state: GameState;
+  reconnecting: boolean;
+  requestRematch: () => boolean;
+}) {
   const iWon = state.match_winner_id === state.you;
   const winner = state.players.find(
     (p) => p.user_id === state.match_winner_id
   );
+  const opponent = state.players.find((p) => p.user_id !== state.you);
+  const myRequested = state.rematch.requesting_user_ids.includes(state.you);
+  const opponentRequested = opponent
+    ? state.rematch.requesting_user_ids.includes(opponent.user_id)
+    : false;
   return (
     <Overlay>
       <div className="text-6xl">{iWon ? "🏆" : "💔"}</div>
@@ -525,6 +548,23 @@ function MatchResultOverlay({ state }: { state: GameState }) {
           : `${winner?.display_name} ניצח/ה את המשחק`}
       </p>
       <ScoreLine state={state} />
+      {opponentRequested && (
+        <p className="mt-5 font-bold text-emerald-300">היריב רוצה רימאטצ&apos;</p>
+      )}
+      {myRequested ? (
+        <div className="mt-5 rounded-xl border border-violet-400/20 bg-violet-500/10 px-5 py-3 font-bold text-violet-200">
+          ממתין ליריב…
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={requestRematch}
+          disabled={reconnecting}
+          className="primary-button mt-5 px-8 py-3 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          🔄 רימאטצ&apos;
+        </button>
+      )}
       <BackHomeLink />
     </Overlay>
   );

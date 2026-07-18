@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from .protocol import (
     ExtendTimeCommand,
     PingCommand,
+    RequestRematchCommand,
     ServerEventEnvelope,
     SubmitAnswerCommand,
     SwapQuestionCommand,
@@ -55,8 +56,9 @@ def generate_types() -> str:
         _interface("SwapQuestionCommand", SwapQuestionCommand),
         _interface("ExtendTimeCommand", ExtendTimeCommand),
         _interface("UseJokerCommand", UseJokerCommand),
+        _interface("RequestRematchCommand", RequestRematchCommand),
         _interface("PingCommand", PingCommand),
-        "export type ClientCommand = SubmitAnswerCommand | SwapQuestionCommand | ExtendTimeCommand | UseJokerCommand | PingCommand;",
+        "export type ClientCommand = SubmitAnswerCommand | SwapQuestionCommand | ExtendTimeCommand | UseJokerCommand | RequestRematchCommand | PingCommand;",
         _interface("ServerEventEnvelope", ServerEventEnvelope),
     ]
     return "\n\n".join(blocks) + "\n"

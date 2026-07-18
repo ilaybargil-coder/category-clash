@@ -45,8 +45,23 @@ class UseJokerCommand(BaseModel):
     client_command_id: uuid.UUID
 
 
+class RequestRematchCommand(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    type: Literal["request_rematch"]
+
+
+class RematchState(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    requesting_user_ids: list[int]
+
+
 ClientCommand = (
-    SubmitAnswerCommand | SwapQuestionCommand | ExtendTimeCommand | UseJokerCommand | PingCommand
+    SubmitAnswerCommand
+    | SwapQuestionCommand
+    | ExtendTimeCommand
+    | UseJokerCommand
+    | RequestRematchCommand
+    | PingCommand
 )
 
 
@@ -79,6 +94,8 @@ def parse_client_command(message: object) -> ClientCommand:
             return ExtendTimeCommand.model_validate(message)
         if command_type == "use_joker":
             return UseJokerCommand.model_validate(message)
+        if command_type == "request_rematch":
+            return RequestRematchCommand.model_validate(message)
         raise ValueError("unknown command type")
     except ValidationError as exc:
         raise ValueError("invalid command payload") from exc

@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Awaitable, Callable, Optional
 
-from ..protocol import make_server_event
+from ..protocol import RematchState, make_server_event
 from .validator import AnswerStatus, QuestionData, RoundValidator
 
 logger = logging.getLogger(__name__)
@@ -152,6 +152,7 @@ class GameRoom:
         self.last_round_result: dict | None = None
         self.match_winner_id: int | None = None
         self.match_end_reason: MatchEndReason | None = None
+        self.rematch_requests: set[int] = set()
 
         self._seq = 0
         self._timer_gen = 0
@@ -199,6 +200,19 @@ class GameRoom:
             return None
         remaining = max(0.0, self.turn_deadline - asyncio.get_running_loop().time())
         return now_ms() + int(remaining * 1000)
+
+    def _powerups_payload(self) -> dict[str, dict[str, bool]]:
+        return {
+            str(uid): {
+                "swap_question": "swap_question" not in self.powerups_used.get(uid, set()),
+                "extend_time": "extend_time" not in self.powerups_used.get(uid, set()),
+                "joker": "joker" not in self.powerups_used.get(uid, set()),
+            }
+            for uid in self.order
+        }
+
+    def _rematch_payload(self) -> dict[str, list[int]]:
+        return RematchState(requesting_user_ids=sorted(self.rematch_requests)).model_dump()
 
     async def _emit(self, event_type: str, **data) -> None:
         self._seq += 1
@@ -250,14 +264,8 @@ class GameRoom:
             last_round_result=self.last_round_result,
             match_winner_id=self.match_winner_id,
             match_end_reason=(self.match_end_reason.value if self.match_end_reason else None),
-            powerups={
-                str(uid): {
-                    "swap_question": "swap_question" not in self.powerups_used.get(uid, set()),
-                    "extend_time": "extend_time" not in self.powerups_used.get(uid, set()),
-                    "joker": "joker" not in self.powerups_used.get(uid, set()),
-                }
-                for uid in self.order
-            },
+            powerups=self._powerups_payload(),
+            rematch=self._rematch_payload(),
         )
 
     # ------------------------------------------------------------ join/leave
@@ -295,6 +303,9 @@ class GameRoom:
                 return
             player.connected = False
 
+            rematch_request_cleared = user_id in self.rematch_requests
+            self.rematch_requests.discard(user_id)
+
             if self.phase == RoomPhase.WAITING_FOR_PLAYERS:
                 # Match never started — free the slot entirely.
                 del self.players[user_id]
@@ -309,6 +320,8 @@ class GameRoom:
                 players=self._players_payload(),
                 forfeit_seconds=self.config.disconnect_forfeit_seconds,
             )
+            if rematch_request_cleared:
+                await self._emit("rematch_updated", rematch=self._rematch_payload())
             if self.phase in (RoomPhase.MATCH_FINISHED, RoomPhase.ABANDONED):
                 return
             self._forfeit_gens[user_id] = self._forfeit_gens.get(user_id, 0) + 1
@@ -332,6 +345,23 @@ class GameRoom:
     # ------------------------------------------------------------ match flow
 
     async def _start_match_locked(self) -> None:
+        self._timer_gen += 1
+        self._preview_gen += 1
+        self.score = {uid: 0 for uid in self.order}
+        self.round_no = 0
+        self.question = None
+        self.validator = None
+        self.answers = []
+        self.turn_user_id = None
+        self.round_starter_id = None
+        self.turn_deadline = None
+        self.last_round_result = None
+        self.match_winner_id = None
+        self.match_end_reason = None
+        self._processed_commands.clear()
+        self.powerups_used = {uid: set() for uid in self.order}
+        self._processed_powerups.clear()
+        self.rematch_requests.clear()
         self.first_starter_id = random.choice(self.order)
         await self._sink_safe(self._sink.on_match_start(self.code, self.order[0], self.order[1]))
         await self._start_round_locked()
@@ -382,6 +412,10 @@ class GameRoom:
             starter_user_id=starter,
             preview_seconds=self.config.preview_seconds,
             score=self._score_payload(),
+            match_winner_id=self.match_winner_id,
+            match_end_reason=None,
+            powerups=self._powerups_payload(),
+            rematch=self._rematch_payload(),
         )
         self._preview_gen += 1
         self._spawn(self._preview_then_activate(self.round_no, self._preview_gen))
@@ -464,7 +498,23 @@ class GameRoom:
             winner_user_id=winner_id,
             reason=reason.value,
             score=self._score_payload(),
+            rematch=self._rematch_payload(),
         )
+
+    # ------------------------------------------------------------- rematch
+
+    async def request_rematch(self, user_id: int) -> bool:
+        async with self.lock:
+            player = self.players.get(user_id)
+            if self.phase != RoomPhase.MATCH_FINISHED or player is None or not player.connected:
+                return False
+
+            self.rematch_requests.add(user_id)
+            await self._emit("rematch_updated", rematch=self._rematch_payload())
+
+            if self.rematch_requests == set(self.order):
+                await self._start_match_locked()
+            return True
 
     # --------------------------------------------------------------- answers
 
@@ -648,14 +698,7 @@ class GameRoom:
                 phase=self.phase.value,
                 turn_user_id=self.turn_user_id,
                 deadline_epoch_ms=self._deadline_epoch_ms(),
-                powerups={
-                    str(uid): {
-                        "swap_question": "swap_question" not in self.powerups_used.get(uid, set()),
-                        "extend_time": "extend_time" not in self.powerups_used.get(uid, set()),
-                        "joker": "joker" not in self.powerups_used.get(uid, set()),
-                    }
-                    for uid in self.order
-                },
+                powerups=self._powerups_payload(),
                 client_command_id=client_command_id,
             )
             return status

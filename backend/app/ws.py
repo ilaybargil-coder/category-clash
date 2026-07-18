@@ -10,6 +10,7 @@ from .game.validator import AnswerStatus
 from .protocol import (
     ExtendTimeCommand,
     PingCommand,
+    RequestRematchCommand,
     SubmitAnswerCommand,
     SwapQuestionCommand,
     UseJokerCommand,
@@ -134,6 +135,8 @@ async def room_websocket(ws: WebSocket, code: str, token: str = Query(...)):
                         match_id=room.code,
                     ),
                 )
+            elif isinstance(command, RequestRematchCommand):
+                await room.request_rematch(user.id)
             elif isinstance(command, (SwapQuestionCommand, ExtendTimeCommand, UseJokerCommand)):
                 names = {
                     SwapQuestionCommand: "swap_question",

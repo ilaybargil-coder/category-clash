@@ -293,6 +293,54 @@ class TestBestOfThree:
         assert status == AnswerStatus.ROUND_FINISHED
 
 
+class TestRematch:
+    async def test_single_request_waits(self):
+        room, events = make_room(turn_seconds=0.05, preview=0.01, intermission=0.01)
+        await join_both(room)
+        await wait_for_phase(room, RoomPhase.MATCH_FINISHED, timeout=5)
+
+        assert await room.request_rematch(P1)
+        assert room.phase == RoomPhase.MATCH_FINISHED
+        assert room.rematch_requests == {P1}
+        assert room.snapshot(P1)["rematch"] == {"requesting_user_ids": [P1]}
+        assert events.of_type("rematch_updated")[-1]["rematch"] == {"requesting_user_ids": [P1]}
+
+    async def test_both_requests_start_fresh_match(self):
+        room, events = make_room(turn_seconds=0.05, preview=0.01, intermission=0.01)
+        await join_both(room)
+        await wait_for_phase(room, RoomPhase.MATCH_FINISHED, timeout=5)
+        previous_question_id = room.question.id
+        previous_round_started_count = len(events.of_type("round_started"))
+        room.powerups_used[P1].add("joker")
+
+        assert await room.request_rematch(P1)
+        assert await room.request_rematch(P2)
+
+        assert room.phase == RoomPhase.QUESTION_PREVIEW
+        assert room.round_no == 1
+        assert room.question.id != previous_question_id
+        assert room.score == {P1: 0, P2: 0}
+        assert room.match_winner_id is None
+        assert room.match_end_reason is None
+        assert room.rematch_requests == set()
+        assert room.powerups_used == {P1: set(), P2: set()}
+        assert len(events.of_type("round_started")) == previous_round_started_count + 1
+        assert events.of_type("round_started")[-1]["rematch"] == {"requesting_user_ids": []}
+
+    async def test_disconnect_clears_request(self):
+        room, events = make_room(turn_seconds=0.05, preview=0.01, intermission=0.01)
+        await join_both(room)
+        await wait_for_phase(room, RoomPhase.MATCH_FINISHED, timeout=5)
+        assert await room.request_rematch(P1)
+
+        await room.disconnect(P1)
+
+        assert room.phase == RoomPhase.MATCH_FINISHED
+        assert room.rematch_requests == set()
+        assert room.snapshot(P2)["rematch"] == {"requesting_user_ids": []}
+        assert events.of_type("rematch_updated")[-1]["rematch"] == {"requesting_user_ids": []}
+
+
 class TestDisconnects:
     async def test_forfeit_after_disconnect(self):
         room, events = make_room(turn_seconds=10)

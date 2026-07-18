@@ -21,11 +21,15 @@ export interface UseJokerCommand {
   client_command_id: string;
 }
 
+export interface RequestRematchCommand {
+  type: "request_rematch";
+}
+
 export interface PingCommand {
   type: "ping";
 }
 
-export type ClientCommand = SubmitAnswerCommand | SwapQuestionCommand | ExtendTimeCommand | UseJokerCommand | PingCommand;
+export type ClientCommand = SubmitAnswerCommand | SwapQuestionCommand | ExtendTimeCommand | UseJokerCommand | RequestRematchCommand | PingCommand;
 
 export interface ServerEventEnvelope {
   event_id: string;

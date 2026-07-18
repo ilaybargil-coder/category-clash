@@ -32,6 +32,11 @@ function syncEvent(overrides: Record<string, unknown> = {}): ServerEvent {
     last_round_result: null,
     match_winner_id: null,
     match_end_reason: null,
+    powerups: {
+      "1": { swap_question: true, extend_time: true, joker: true },
+      "2": { swap_question: true, extend_time: true, joker: true },
+    },
+    rematch: { requesting_user_ids: [] },
     ...overrides,
   };
 }
@@ -176,6 +181,19 @@ describe("applyServerEvent — state_sync replaces, never accumulates", () => {
 });
 
 describe("applyServerEvent — round lifecycle", () => {
+  it("broadcasts rematch requests without leaving the finished phase", () => {
+    const finished = initialState();
+    finished.phase = "MATCH_FINISHED";
+    const state = applyServerEvent(finished, {
+      type: "rematch_updated",
+      seq: 2,
+      rematch: { requesting_user_ids: [2] },
+    });
+
+    expect(state?.phase).toBe("MATCH_FINISHED");
+    expect(state?.rematch.requesting_user_ids).toEqual([2]);
+  });
+
   it("round_started clears the answer feed", () => {
     let state = applyServerEvent(initialState(), answerEvent("sub-1"));
     state = applyServerEvent(state, {
@@ -190,10 +208,18 @@ describe("applyServerEvent — round lifecycle", () => {
         { user_id: 1, points: 1 },
         { user_id: 2, points: 0 },
       ],
+      match_winner_id: null,
+      match_end_reason: null,
+      powerups: {
+        "1": { swap_question: true, extend_time: true, joker: true },
+        "2": { swap_question: true, extend_time: true, joker: true },
+      },
+      rematch: { requesting_user_ids: [] },
     });
     expect(state?.answers).toHaveLength(0);
     expect(state?.round_no).toBe(2);
     expect(state?.phase).toBe("QUESTION_PREVIEW");
+    expect(state?.rematch.requesting_user_ids).toEqual([]);
   });
 
   it("events before any state_sync are ignored (no crash, no phantom state)", () => {

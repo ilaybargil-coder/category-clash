@@ -75,6 +75,10 @@ export function applyServerEvent(
       next.answers = [];
       next.deadline_epoch_ms = null;
       next.last_round_result = null;
+      next.match_winner_id = (event.match_winner_id as number | null) ?? null;
+      next.match_end_reason = (event.match_end_reason as string | null) ?? null;
+      next.powerups = event.powerups as GameState["powerups"];
+      next.rematch = event.rematch as GameState["rematch"];
       break;
     case "round_active":
       next.phase = "ROUND_ACTIVE";
@@ -129,6 +133,10 @@ export function applyServerEvent(
       next.match_end_reason = event.reason as string;
       next.score = event.score as ScoreEntry[];
       next.deadline_epoch_ms = null;
+      next.rematch = event.rematch as GameState["rematch"];
+      break;
+    case "rematch_updated":
+      next.rematch = event.rematch as GameState["rematch"];
       break;
     case "room_error":
       next.phase = "ABANDONED";

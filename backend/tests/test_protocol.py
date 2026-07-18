@@ -5,7 +5,12 @@ from starlette.websockets import WebSocketDisconnect
 from app.auth import create_access_token
 from app.game.manager import room_manager
 from app.main import app
-from app.protocol import PingCommand, SubmitAnswerCommand, parse_client_command
+from app.protocol import (
+    PingCommand,
+    RequestRematchCommand,
+    SubmitAnswerCommand,
+    parse_client_command,
+)
 from app.protocol_codegen import OUTPUT_PATH, generate_types
 
 
@@ -38,6 +43,12 @@ def test_ping_rejects_unknown_fields():
     assert isinstance(parse_client_command({"type": "ping"}), PingCommand)
     with pytest.raises(ValueError):
         parse_client_command({"type": "ping", "unexpected": True})
+
+
+def test_request_rematch_rejects_unknown_fields():
+    assert isinstance(parse_client_command({"type": "request_rematch"}), RequestRematchCommand)
+    with pytest.raises(ValueError):
+        parse_client_command({"type": "request_rematch", "unexpected": True})
 
 
 def test_generated_types_match_pydantic_protocol():

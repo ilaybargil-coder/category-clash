@@ -46,6 +46,10 @@ export interface RoundResult {
   score: ScoreEntry[];
 }
 
+export interface RematchState {
+  requesting_user_ids: number[];
+}
+
 export interface GameState {
   seq: number;
   event_id: string;
@@ -70,6 +74,7 @@ export interface GameState {
     extend_time: boolean;
     joker: boolean;
   }>;
+  rematch: RematchState;
   /** offset (serverNow - clientNow) so timers render off the server clock */
   clock_offset_ms: number;
 }
