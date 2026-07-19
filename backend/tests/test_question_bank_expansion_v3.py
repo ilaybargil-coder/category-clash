@@ -6,7 +6,7 @@ from app.question_bank_expansion_v3 import (
     QUESTION_EXPANSION_SOURCES_V3,
     QUESTION_EXPANSIONS_V3,
 )
-from app.seed import QUESTIONS
+from app.seed import DEACTIVATED_QUESTION_TEXTS, QUESTIONS
 
 BY_QUESTION = {question["text"]: question for question in QUESTIONS}
 
@@ -33,7 +33,8 @@ def test_every_question_was_reviewed_and_has_sources():
     question_names = set(BY_QUESTION)
     reviewed = set(QUESTION_EXPANSIONS_V3) | set(ANSWER_ALIAS_ADDITIONS_V3)
     assert question_names <= reviewed
-    assert question_names == set(QUESTION_EXPANSION_SOURCES_V3)
+    active_source_names = set(QUESTION_EXPANSION_SOURCES_V3) - set(DEACTIVATED_QUESTION_TEXTS)
+    assert question_names == active_source_names
     assert all(QUESTION_EXPANSION_SOURCES_V3[name] for name in question_names)
 
 

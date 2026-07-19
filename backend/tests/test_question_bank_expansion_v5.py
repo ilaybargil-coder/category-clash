@@ -6,7 +6,7 @@ from app.question_bank_expansion_v5 import (
     EXPANSION_V5,
     QUESTION_POLICIES_V5,
 )
-from app.seed import QUESTIONS
+from app.seed import DEACTIVATED_QUESTION_TEXTS, QUESTIONS
 
 BY_QUESTION = {question["text"]: question for question in QUESTIONS}
 TARGET_QUESTION_TEXTS = {
@@ -21,6 +21,12 @@ DEEPENED_QUESTION_TEXTS = {
     "כתבו שמות של מדינות באסיה",
     "כתבו שמות של ערים בישראל",
 }
+CONTENT_CLEANUP_DEACTIVATIONS = {
+    "כתבו שמות של בירות בעולם",
+    "כתבו שמות של כלי מטבח",
+    "כתבו שמות של יסודות כימיים",
+}
+ACTIVE_TARGET_QUESTION_TEXTS = TARGET_QUESTION_TEXTS - CONTENT_CLEANUP_DEACTIVATIONS
 
 
 def index_for(question_text: str):
@@ -41,11 +47,16 @@ def assert_resolves(question_text: str, submitted: str, canonical: str):
 
 
 def test_v5_targets_have_policies_and_multiple_sources():
-    assert TARGET_QUESTION_TEXTS <= set(BY_QUESTION)
+    assert ACTIVE_TARGET_QUESTION_TEXTS <= set(BY_QUESTION)
     assert TARGET_QUESTION_TEXTS == set(CURATION_SOURCES)
     assert TARGET_QUESTION_TEXTS == set(QUESTION_POLICIES_V5)
     assert set(EXPANSION_V5) == DEEPENED_QUESTION_TEXTS
     assert all(len(sources) >= 2 for sources in CURATION_SOURCES.values())
+
+
+def test_content_cleanup_questions_are_deactivated_and_not_assembled():
+    assert CONTENT_CLEANUP_DEACTIVATIONS <= set(DEACTIVATED_QUESTION_TEXTS)
+    assert CONTENT_CLEANUP_DEACTIVATIONS.isdisjoint(BY_QUESTION)
 
 
 def test_v5_policies_define_required_boundaries():
@@ -68,8 +79,6 @@ def test_closed_sets_and_requested_depth_are_present():
     assert len(BY_QUESTION["כתבו שמות של מדינות באירופה"]["answers"]) == 46
     assert len(BY_QUESTION["כתבו שמות של מדינות באפריקה"]["answers"]) == 54
     assert len(BY_QUESTION["כתבו שמות של ערים בישראל"]["answers"]) == 82
-    assert len(BY_QUESTION["כתבו שמות של יסודות כימיים"]["answers"]) >= 40
-    assert len(BY_QUESTION["כתבו שמות של בירות בעולם"]["answers"]) >= 50
 
 
 def test_asian_country_canonicals_and_real_alternate_names_are_accepted():
@@ -103,24 +112,8 @@ def test_african_country_set_remains_complete_and_playable():
     assert_resolves(question, "Swaziland", "אסוואטיני")
 
 
-def test_chemical_element_names_symbols_and_real_alternates_are_accepted():
-    question = "כתבו שמות של יסודות כימיים"
-    assert_resolves(question, "ברזל", "ברזל")
-    assert_resolves(question, "Fe", "ברזל")
-    assert_resolves(question, "Silicon", "צורן")
-    assert_resolves(question, "וולפרם", "טונגסטן")
-
-
-def test_world_capital_canonicals_and_english_names_are_accepted():
-    question = "כתבו שמות של בירות בעולם"
-    assert_resolves(question, "בייג'ינג", "בייג'ינג")
-    assert_resolves(question, "Beijing", "בייג'ינג")
-    assert_resolves(question, "Washington, D.C.", "וושינגטון")
-    assert_resolves(question, "Addis Ababa", "אדיס אבבה")
-
-
 def test_no_v5_target_form_collides_between_answers():
-    for question_text in TARGET_QUESTION_TEXTS:
+    for question_text in ACTIVE_TARGET_QUESTION_TEXTS:
         seen: dict[str, str] = {}
         for canonical, aliases, _group in BY_QUESTION[question_text]["answers"]:
             for form in (canonical, *aliases):

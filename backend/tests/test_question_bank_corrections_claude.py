@@ -11,7 +11,11 @@ from app.question_bank_corrections_claude import (
     QUESTION_CORRECTIONS,
     apply_corrections,
 )
-from app.seed import QUESTIONS, QUESTIONS_BEFORE_CLAUDE_CORRECTIONS
+from app.seed import (
+    DEACTIVATED_QUESTION_TEXTS,
+    QUESTIONS,
+    QUESTIONS_BEFORE_CLAUDE_CORRECTIONS,
+)
 
 CORRECTED = QUESTIONS
 CORRECTED_BY_TEXT = {question["text"]: question for question in CORRECTED}
@@ -42,7 +46,7 @@ class TestScope:
     def test_all_corrections_target_existing_questions(self):
         existing = {question["text"] for question in QUESTIONS}
         for text in QUESTION_CORRECTIONS:
-            assert text in existing, text
+            assert text in existing or text in DEACTIVATED_QUESTION_TEXTS, text
 
     def test_corrections_stay_within_categories_1_to_20(self):
         assert set(QUESTION_CORRECTIONS) <= set(CATEGORY_SCOPE_1_20)
@@ -234,6 +238,8 @@ class TestAdditions:
     def test_additions_do_not_shadow_existing_answers(self):
         """Every added canonical is genuinely new for its question."""
         for text, correction in QUESTION_CORRECTIONS.items():
+            if text in DEACTIVATED_QUESTION_TEXTS:
+                continue
             original_forms = {
                 normalize_answer(form)
                 for canonical, aliases, _g in ORIGINAL_BY_TEXT[text]["answers"]

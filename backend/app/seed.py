@@ -66,6 +66,9 @@ from .question_bank_expansion_v9 import (
 
 DEACTIVATED_QUESTION_TEXTS = [
     "כתבו שמות של אותיות באלף-בית העברי",
+    "כתבו שמות של בירות בעולם",
+    "כתבו שמות של כלי מטבח",
+    "כתבו שמות של יסודות כימיים",
 ]
 
 # The V3 governance test audits the current QUESTIONS collection through the
