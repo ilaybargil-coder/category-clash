@@ -7,6 +7,14 @@ import { useViewportHeight } from "@/hooks/useViewportHeight";
 import { BrandMark, UserAvatar } from "./VisualShell";
 import AnswerFeed from "./AnswerFeed";
 import TimerBar from "./TimerBar";
+import {
+  isMuted,
+  playMatchLoss,
+  playMatchWin,
+  playRoundLoss,
+  playRoundWin,
+  toggleMute,
+} from "@/lib/sfx";
 import type { GameState, PlayerInfo } from "@/lib/types";
 
 export default function GameRoom({ code }: { code: string }) {
@@ -131,11 +139,22 @@ function GameView({
   };
 
   const [draft, setDraft] = useState("");
+  const [soundMuted, setSoundMuted] = useState(false);
   const [optimisticPowerups, setOptimisticPowerups] = useState<{
     stateSyncRevision: number;
     used: Set<PowerupType>;
   }>(() => ({ stateSyncRevision, used: new Set() }));
   const inputRef = useRef<HTMLInputElement>(null);
+  const handledRoundResultRef = useRef(
+    state.last_round_result
+      ? `${state.last_round_result.round_no}:${state.last_round_result.winner_user_id}:${state.last_round_result.loser_user_id}`
+      : null
+  );
+  const handledMatchResultRef = useRef(
+    state.phase === "MATCH_FINISHED"
+      ? `${state.match_winner_id}:${state.match_end_reason}`
+      : null
+  );
   const optimisticallyUsed =
     optimisticPowerups.stateSyncRevision === stateSyncRevision
       ? optimisticPowerups.used
@@ -144,6 +163,52 @@ function GameView({
   useEffect(() => {
     if (myTurn) inputRef.current?.focus();
   }, [myTurn]);
+
+  useEffect(() => {
+    const updateMuteState = setTimeout(() => setSoundMuted(isMuted()), 0);
+    return () => clearTimeout(updateMuteState);
+  }, []);
+
+  useEffect(() => {
+    const result = state.last_round_result;
+    if (!result) {
+      handledRoundResultRef.current = null;
+      return;
+    }
+
+    const resultKey = `${result.round_no}:${result.winner_user_id}:${result.loser_user_id}`;
+    if (
+      state.phase === "ROUND_FINISHED" &&
+      handledRoundResultRef.current !== resultKey
+    ) {
+      handledRoundResultRef.current = resultKey;
+      if (result.winner_user_id === state.you) playRoundWin();
+      else playRoundLoss();
+    }
+  }, [state.last_round_result, state.phase, state.you]);
+
+  useEffect(() => {
+    if (state.phase !== "MATCH_FINISHED") {
+      handledMatchResultRef.current = null;
+      return;
+    }
+
+    const resultKey = `${state.match_winner_id}:${state.match_end_reason}`;
+    if (handledMatchResultRef.current !== resultKey) {
+      handledMatchResultRef.current = resultKey;
+      if (state.match_winner_id === state.you) playMatchWin();
+      else playMatchLoss();
+    }
+  }, [
+    state.match_end_reason,
+    state.match_winner_id,
+    state.phase,
+    state.you,
+  ]);
+
+  function onToggleMute() {
+    setSoundMuted(toggleMute());
+  }
 
   // New attempt clears any stale "not your turn" toast.
   useEffect(() => {
@@ -187,6 +252,16 @@ function GameView({
         <header className="mb-2 flex shrink-0 items-center justify-between px-2 py-1 lg:mb-3">
           <BrandMark compact />
           <div className="flex items-center gap-2 text-[11px] text-slate-500">
+            <button
+              type="button"
+              onClick={onToggleMute}
+              aria-label={soundMuted ? "הפעלת צלילים" : "השתקת צלילים"}
+              aria-pressed={soundMuted}
+              title={soundMuted ? "הפעלת צלילים" : "השתקת צלילים"}
+              className="grid h-8 w-8 touch-manipulation place-items-center rounded-full border border-white/10 bg-black/20 text-sm transition hover:bg-white/10"
+            >
+              <span aria-hidden="true">{soundMuted ? "🔇" : "🔊"}</span>
+            </button>
             <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 font-mono tracking-wider">
               חדר {state.code}
             </span>
@@ -228,6 +303,7 @@ function GameView({
                 turnSeconds={state.turn_seconds}
                 clockOffsetMs={state.clock_offset_ms}
                 active={state.phase === "ROUND_ACTIVE"}
+                isCurrentPlayerTurn={myTurn}
               />
               <p className="mt-1 min-h-5 text-xs font-bold sm:text-sm">
                 {state.phase === "ROUND_ACTIVE" &&

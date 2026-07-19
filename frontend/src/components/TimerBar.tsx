@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { playTick } from "@/lib/sfx";
 
 interface Props {
   deadlineEpochMs: number | null;
   turnSeconds: number;
   clockOffsetMs: number;
   active: boolean;
+  isCurrentPlayerTurn: boolean;
 }
 
 /** Renders the countdown locally, but only from server-provided deadlines —
@@ -16,14 +18,46 @@ export default function TimerBar({
   turnSeconds,
   clockOffsetMs,
   active,
+  isCurrentPlayerTurn,
 }: Props) {
-  const [remainingMs, setRemainingMs] = useState<number | null>(null);
+  const [countdown, setCountdown] = useState<{
+    deadlineEpochMs: number;
+    remainingMs: number;
+  } | null>(null);
+  const playedTicksRef = useRef<{
+    deadlineEpochMs: number | null;
+    isCurrentPlayerTurn: boolean;
+    seconds: Set<number>;
+  }>({ deadlineEpochMs: null, isCurrentPlayerTurn: false, seconds: new Set() });
 
   useEffect(() => {
+    if (
+      playedTicksRef.current.deadlineEpochMs !== deadlineEpochMs ||
+      playedTicksRef.current.isCurrentPlayerTurn !== isCurrentPlayerTurn
+    ) {
+      playedTicksRef.current = {
+        deadlineEpochMs,
+        isCurrentPlayerTurn,
+        seconds: new Set(),
+      };
+    }
     if (!active || deadlineEpochMs === null) return;
+
     const tick = () => {
       const serverNow = Date.now() + clockOffsetMs;
-      setRemainingMs(Math.max(0, deadlineEpochMs - serverNow));
+      const nextRemainingMs = Math.max(0, deadlineEpochMs - serverNow);
+      const seconds = Math.ceil(nextRemainingMs / 1000);
+      setCountdown({ deadlineEpochMs, remainingMs: nextRemainingMs });
+
+      if (
+        isCurrentPlayerTurn &&
+        seconds >= 1 &&
+        seconds <= 3 &&
+        !playedTicksRef.current.seconds.has(seconds)
+      ) {
+        playedTicksRef.current.seconds.add(seconds);
+        playTick();
+      }
     };
     const initialTick = setTimeout(tick, 0);
     const interval = setInterval(tick, 100);
@@ -31,7 +65,12 @@ export default function TimerBar({
       clearTimeout(initialTick);
       clearInterval(interval);
     };
-  }, [deadlineEpochMs, clockOffsetMs, active]);
+  }, [deadlineEpochMs, clockOffsetMs, active, isCurrentPlayerTurn]);
+
+  const remainingMs =
+    countdown?.deadlineEpochMs === deadlineEpochMs
+      ? countdown.remainingMs
+      : null;
 
   if (!active || deadlineEpochMs === null || remainingMs === null) {
     return (

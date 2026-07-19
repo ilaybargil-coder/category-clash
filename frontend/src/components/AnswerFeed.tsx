@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { playAccept, playDuplicate, playReject } from "@/lib/sfx";
 import type { AnswerItem, PlayerInfo } from "@/lib/types";
 
 const STATUS_META: Record<
@@ -33,11 +34,31 @@ interface Props {
 
 export default function AnswerFeed({ answers, myUserId, players }: Props) {
   const feedRef = useRef<HTMLDivElement>(null);
+  const seenAnswerIdsRef = useRef(
+    new Set(answers.map((answer) => answer.submission_id))
+  );
 
   useEffect(() => {
     const feed = feedRef.current;
     if (feed) feed.scrollTop = feed.scrollHeight;
   }, [answers.length]);
+
+  useEffect(() => {
+    for (const answer of answers) {
+      if (seenAnswerIdsRef.current.has(answer.submission_id)) continue;
+      seenAnswerIdsRef.current.add(answer.submission_id);
+
+      if (answer.user_id !== myUserId) continue;
+      if (answer.status === "VALID") playAccept();
+      else if (answer.status === "INVALID") playReject();
+      else if (
+        answer.status === "DUPLICATE" ||
+        answer.status === "TOO_SIMILAR"
+      ) {
+        playDuplicate();
+      }
+    }
+  }, [answers, myUserId]);
 
   const nameOf = (userId: number) =>
     players.find((p) => p.user_id === userId)?.display_name ?? "";
