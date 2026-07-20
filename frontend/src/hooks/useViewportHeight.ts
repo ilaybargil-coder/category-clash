@@ -7,7 +7,6 @@ export function useViewportHeight() {
     const root = document.documentElement;
     const viewport = window.visualViewport;
     let animationFrame: number | null = null;
-    let shouldResetScroll = false;
 
     const updateHeight = () => {
       const height = viewport?.height ?? window.innerHeight;
@@ -20,26 +19,21 @@ export function useViewportHeight() {
       }
     };
 
-    const scheduleUpdate = (resetScroll = false) => {
-      shouldResetScroll ||= resetScroll;
+    const scheduleUpdate = () => {
       if (animationFrame !== null) return;
 
       animationFrame = window.requestAnimationFrame(() => {
         animationFrame = null;
-        if (shouldResetScroll) window.scrollTo(0, 0);
-        shouldResetScroll = false;
         updateHeight();
       });
     };
 
     const handleResize = () => scheduleUpdate();
-    const handleScroll = () => scheduleUpdate(true);
 
     updateHeight();
 
     if (viewport) {
       viewport.addEventListener("resize", handleResize);
-      viewport.addEventListener("scroll", handleScroll);
     } else {
       window.addEventListener("resize", handleResize);
     }
@@ -50,7 +44,6 @@ export function useViewportHeight() {
       }
       if (viewport) {
         viewport.removeEventListener("resize", handleResize);
-        viewport.removeEventListener("scroll", handleScroll);
       } else {
         window.removeEventListener("resize", handleResize);
       }

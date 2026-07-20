@@ -79,6 +79,7 @@ async function dailyRequest<T>(path: string, options: RequestInit = {}): Promise
 export default function DailyPage() {
   useViewportHeight();
 
+  const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const user = getUser();
   const [today, setToday] = useState<DailyToday | null>(null);
@@ -158,6 +159,7 @@ export default function DailyPage() {
         setFoundAnswers((items) => [...items, answer.canonical!]);
       }
       setDraft("");
+      requestAnimationFrame(() => inputRef.current?.focus({ preventScroll: true }));
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : "שליחת התשובה נכשלה");
     } finally {
@@ -283,29 +285,6 @@ export default function DailyPage() {
                     ))}
                   </div>
                 )}
-
-                <form onSubmit={submitAnswer} className="flex shrink-0 gap-2">
-                  <input
-                    autoFocus
-                    value={draft}
-                    onChange={(event) => setDraft(event.target.value)}
-                    disabled={busy}
-                    maxLength={60}
-                    placeholder="כתבו תשובה…"
-                    className="dark-input min-w-0 flex-1 py-3"
-                  />
-                  <button disabled={busy || !draft.trim()} className="primary-button px-6 disabled:opacity-40">
-                    שליחה
-                  </button>
-                </form>
-                <button
-                  type="button"
-                  onClick={() => void finishAttempt()}
-                  disabled={busy}
-                  className="secondary-button w-full shrink-0 py-3 disabled:opacity-40"
-                >
-                  סיימתי — שמירת תוצאה
-                </button>
               </>
             ) : (
               <section className="py-8 text-center">
@@ -329,6 +308,37 @@ export default function DailyPage() {
               </p>
             )}
           </div>
+
+          {active && !today.result && (
+            <footer className="shrink-0 border-t border-white/10 bg-black/20 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+              <form onSubmit={submitAnswer} className="flex shrink-0 gap-2">
+                <input
+                  ref={inputRef}
+                  autoFocus
+                  value={draft}
+                  onChange={(event) => setDraft(event.target.value)}
+                  maxLength={60}
+                  placeholder="כתבו תשובה…"
+                  className="dark-input min-w-0 flex-1 py-3"
+                />
+                <button
+                  onPointerDown={(event) => event.preventDefault()}
+                  disabled={busy || !draft.trim()}
+                  className="primary-button px-6 disabled:opacity-40"
+                >
+                  שליחה
+                </button>
+              </form>
+              <button
+                type="button"
+                onClick={() => void finishAttempt()}
+                disabled={busy}
+                className="secondary-button w-full shrink-0 py-3 disabled:opacity-40"
+              >
+                סיימתי — שמירת תוצאה
+              </button>
+            </footer>
+          )}
         </section>
 
         <aside className="surface-panel h-fit rounded-2xl p-5">

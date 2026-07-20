@@ -218,8 +218,8 @@ export default function SoloPage() {
       {!revealed ? (
         <div className="shrink-0 border-t border-white/10 bg-black/20 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <form onSubmit={onSubmit} className="flex gap-2">
-            <input ref={inputRef} autoFocus value={draft} onChange={(event) => setDraft(event.target.value)} disabled={busy} maxLength={60} placeholder="כתבו תשובה…" className="dark-input min-w-0 flex-1 py-2.5" />
-            <button disabled={busy || !draft.trim()} className="primary-button px-6 disabled:opacity-40">שליחה</button>
+            <input ref={inputRef} autoFocus value={draft} onChange={(event) => setDraft(event.target.value)} maxLength={60} placeholder="כתבו תשובה…" className="dark-input min-w-0 flex-1 py-2.5" />
+            <button onPointerDown={(event) => event.preventDefault()} disabled={busy || !draft.trim()} className="primary-button px-6 disabled:opacity-40">שליחה</button>
           </form>
           <button onClick={() => void onReveal()} disabled={busy} className="mt-3 w-full py-2 text-sm font-bold text-slate-500 disabled:opacity-40">סיימתי / חשיפת תשובות</button>
         </div>
