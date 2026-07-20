@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { ArrowLeftIcon, CoinIcon, LightningIcon } from "@/components/icons";
@@ -80,20 +81,16 @@ const NAV_ITEMS: Array<{
 ];
 
 export function BrandMark({ compact = false }: { compact?: boolean }) {
+  const size = compact ? 44 : 140;
+
   return (
-    <div className={`brand-lockup ${compact ? "brand-lockup--compact" : ""}`}>
-      <div className="brand-symbol" aria-hidden="true">
-        <span className="brand-card brand-card--purple" />
-        <span className="brand-card brand-card--cream" />
-        <span className="brand-bolt">
-          <LightningIcon size={compact ? 30 : 48} />
-        </span>
-      </div>
-      <div>
-        <div className="brand-title">קרב קטגוריות</div>
-        {!compact && <div className="brand-subtitle">CATEGORY CLASH</div>}
-      </div>
-    </div>
+    <Image
+      src="/assets/logo.png"
+      alt="קרב קטגוריות"
+      width={size}
+      height={size}
+      priority={!compact}
+    />
   );
 }
 
