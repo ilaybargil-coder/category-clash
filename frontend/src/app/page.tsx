@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import AuthScreen from "@/components/AuthScreen";
 import DashboardFriendsCarousel from "@/components/DashboardFriendsCarousel";
 import FriendsPanel from "@/components/FriendsPanel";
+import InviteToast from "@/components/InviteToast";
 import {
   BrandMark,
   CoinPill,
@@ -291,6 +292,7 @@ function LobbyDashboard({ user, onSignOut }: { user: SessionUser; onSignOut: () 
         </section>
         <ProfilePanel user={user} />
       </div>
+      <InviteToast />
       <MobileNav activeView={activeView} onNavigate={navigate} />
     </main>
   );
