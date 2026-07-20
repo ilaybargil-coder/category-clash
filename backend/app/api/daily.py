@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -17,11 +18,12 @@ from ..auth import TokenUser, get_current_user
 from ..config import settings
 from ..db import get_session
 from ..game.validator import AnswerStatus, QuestionData, RoundValidator, build_question_index
-from ..models import ApprovedAnswer, DailyResult, Question, User
+from ..models import ApprovedAnswer, DailyChallenge, DailyResult, Question, User
 
 router = APIRouter(prefix="/api/daily", tags=["daily"])
 _SESSION_TTL = timedelta(minutes=30)
 _LEADERBOARD_LIMIT = 20
+_ISRAEL_TZ = ZoneInfo("Asia/Jerusalem")
 
 
 @dataclass
@@ -88,8 +90,8 @@ class DailyLeaderboardOut(BaseModel):
 _daily_sessions: dict[tuple[int, date], DailySession] = {}
 
 
-def _utc_today() -> date:
-    return datetime.now(timezone.utc).date()
+def _local_today() -> date:
+    return datetime.now(_ISRAEL_TZ).date()
 
 
 def _make_validator(question: QuestionData) -> RoundValidator:
@@ -110,12 +112,44 @@ def _purge_expired_sessions() -> None:
 
 
 async def get_daily_question(session: AsyncSession, challenge_date: date) -> QuestionData | None:
-    """Return the stable active question selected for a UTC calendar date."""
+    """Return the pinned active question selected for an Israel-local calendar date."""
+
+    pin = (
+        await session.execute(select(DailyChallenge).where(DailyChallenge.date == challenge_date))
+    ).scalar_one_or_none()
+    if pin is not None:
+        question = (
+            await session.execute(
+                select(Question)
+                .where(Question.id == pin.question_id)
+                .options(selectinload(Question.answers).selectinload(ApprovedAnswer.aliases))
+            )
+        ).scalar_one_or_none()
+        if question is not None and question.is_active:
+            active_answers = [answer for answer in question.answers if answer.is_active]
+            if active_answers:
+                index = build_question_index(
+                    [
+                        (
+                            answer.id,
+                            answer.canonical,
+                            answer.semantic_group,
+                            [alias.alias for alias in answer.aliases],
+                        )
+                        for answer in active_answers
+                    ]
+                )
+                return QuestionData(id=question.id, text=question.text, index=index)
 
     question_ids = list(
         (
             await session.execute(
-                select(Question.id).where(Question.is_active.is_(True)).order_by(Question.id)
+                select(Question.id)
+                .where(
+                    Question.is_active.is_(True),
+                    Question.answers.any(ApprovedAnswer.is_active.is_(True)),
+                )
+                .order_by(Question.id)
             )
         )
         .scalars()
@@ -126,6 +160,23 @@ async def get_daily_question(session: AsyncSession, challenge_date: date) -> Que
 
     digest = hashlib.sha256(challenge_date.isoformat().encode("ascii")).digest()
     question_id = question_ids[int.from_bytes(digest, "big") % len(question_ids)]
+
+    if pin is None:
+        session.add(DailyChallenge(date=challenge_date, question_id=question_id))
+        try:
+            await session.commit()
+        except IntegrityError:
+            await session.rollback()
+            concurrent_pin = (
+                await session.execute(
+                    select(DailyChallenge).where(DailyChallenge.date == challenge_date)
+                )
+            ).scalar_one()
+            question_id = concurrent_pin.question_id
+    else:
+        pin.question_id = question_id
+        await session.commit()
+
     question = (
         await session.execute(
             select(Question)
@@ -196,7 +247,7 @@ async def daily_today(
     current: TokenUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> DailyTodayOut:
-    challenge_date = _utc_today()
+    challenge_date = _local_today()
     question = await get_daily_question(session, challenge_date)
     if question is None:
         raise HTTPException(status_code=503, detail="No questions available")
@@ -215,7 +266,7 @@ async def start_daily(
     current: TokenUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> DailyStartOut:
-    challenge_date = _utc_today()
+    challenge_date = _local_today()
     if await _find_result(session, current.id, challenge_date) is not None:
         raise HTTPException(status_code=409, detail="Daily challenge already completed")
 
@@ -243,7 +294,7 @@ async def answer_daily(
     body: DailyAnswerBody,
     current: TokenUser = Depends(get_current_user),
 ) -> DailyAnswerOut:
-    daily = _owned_session(current, _utc_today())
+    daily = _owned_session(current, _local_today())
     result = daily.validator.check(body.text)
     if result.status == AnswerStatus.VALID and result.entry is not None:
         daily.found_answers.append((result.entry.answer_id, result.entry.canonical))
@@ -260,7 +311,7 @@ async def finish_daily(
     current: TokenUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> DailyResultOut:
-    challenge_date = _utc_today()
+    challenge_date = _local_today()
     existing = await _find_result(session, current.id, challenge_date)
     if existing is not None:
         _daily_sessions.pop((current.id, challenge_date), None)
@@ -293,7 +344,7 @@ async def daily_leaderboard(
     _current: TokenUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> DailyLeaderboardOut:
-    challenge_date = _utc_today()
+    challenge_date = _local_today()
     rows = (
         await session.execute(
             select(DailyResult, User)

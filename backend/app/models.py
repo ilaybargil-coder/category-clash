@@ -87,6 +87,14 @@ class DailyResult(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class DailyChallenge(Base):
+    __tablename__ = "daily_challenges"
+
+    date: Mapped[date_type] = mapped_column(Date, primary_key=True)
+    question_id: Mapped[int] = mapped_column(ForeignKey("questions.id", ondelete="CASCADE"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class AnswerReport(Base):
     __tablename__ = "answer_reports"
     __table_args__ = (

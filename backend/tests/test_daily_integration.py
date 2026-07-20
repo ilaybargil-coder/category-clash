@@ -1,5 +1,6 @@
 import os
 import uuid
+from datetime import date
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -10,7 +11,7 @@ from app.auth import create_access_token
 from app.config import settings
 from app.db import SessionLocal, engine
 from app.main import app
-from app.models import ApprovedAnswer, DailyResult, Question, User
+from app.models import ApprovedAnswer, DailyChallenge, DailyResult, Question, User
 
 pytestmark = [
     pytest.mark.integration,
@@ -76,6 +77,11 @@ async def daily_data():
         _daily_sessions.pop(key, None)
     async with SessionLocal() as session:
         await session.execute(
+            delete(DailyChallenge).where(
+                DailyChallenge.question_id.in_([question.id for question in questions])
+            )
+        )
+        await session.execute(
             delete(DailyResult).where(DailyResult.user_id.in_([first_user.id, second_user.id]))
         )
         await session.execute(delete(Question).where(Question.id.in_([q.id for q in questions])))
@@ -115,6 +121,88 @@ async def test_category_of_day_is_deterministic_and_shared(client, daily_data) -
     assert first.json()["question_id"] == second.json()["question_id"]
     assert first.json()["date"] == second.json()["date"]
     assert first.json()["question_id"] in {question.id for question in questions}
+
+
+async def test_daily_question_is_stable_when_pool_grows(client, daily_data) -> None:
+    first_user, _second_user, _questions, _answers = daily_data
+    headers = auth_headers(first_user)
+    first = await client.get("/api/daily/today", headers=headers)
+
+    assert first.status_code == 200
+    challenge_date = date.fromisoformat(first.json()["date"])
+    original_question_id = first.json()["question_id"]
+    extra_question_id: int | None = None
+    try:
+        async with SessionLocal() as session:
+            extra_question = Question(
+                text=f"Daily integration added question {uuid.uuid4().hex}",
+                is_active=True,
+            )
+            session.add(extra_question)
+            await session.flush()
+            extra_question_id = extra_question.id
+            session.add(
+                ApprovedAnswer(
+                    question_id=extra_question.id,
+                    canonical=f"תשובה נוספת {uuid.uuid4().hex}",
+                    is_active=True,
+                )
+            )
+            await session.commit()
+
+        repeated = await client.get("/api/daily/today", headers=headers)
+
+        assert repeated.status_code == 200
+        assert repeated.json()["question_id"] == original_question_id
+    finally:
+        async with SessionLocal() as session:
+            await session.execute(
+                delete(DailyChallenge).where(DailyChallenge.date == challenge_date)
+            )
+            if extra_question_id is not None:
+                await session.execute(
+                    delete(ApprovedAnswer).where(ApprovedAnswer.question_id == extra_question_id)
+                )
+                await session.execute(delete(Question).where(Question.id == extra_question_id))
+            await session.commit()
+
+
+async def test_daily_question_repicks_when_pinned_question_deactivated(client, daily_data) -> None:
+    first_user, _second_user, questions, _answers = daily_data
+    headers = auth_headers(first_user)
+    first = await client.get("/api/daily/today", headers=headers)
+
+    assert first.status_code == 200
+    challenge_date = date.fromisoformat(first.json()["date"])
+    original_question_id = first.json()["question_id"]
+    try:
+        async with SessionLocal() as session:
+            await session.execute(
+                update(Question).where(Question.id == original_question_id).values(is_active=False)
+            )
+            await session.commit()
+
+        repeated = await client.get("/api/daily/today", headers=headers)
+
+        assert repeated.status_code == 200
+        replacement_question_id = repeated.json()["question_id"]
+        assert replacement_question_id != original_question_id
+        assert replacement_question_id in {
+            question.id for question in questions if question.id != original_question_id
+        }
+        async with SessionLocal() as session:
+            pin = await session.get(DailyChallenge, challenge_date)
+            assert pin is not None
+            assert pin.question_id == replacement_question_id
+    finally:
+        async with SessionLocal() as session:
+            await session.execute(
+                update(Question).where(Question.id == original_question_id).values(is_active=True)
+            )
+            await session.execute(
+                delete(DailyChallenge).where(DailyChallenge.date == challenge_date)
+            )
+            await session.commit()
 
 
 async def test_one_attempt_per_user_per_day_and_idempotent_finish(client, daily_data) -> None:
