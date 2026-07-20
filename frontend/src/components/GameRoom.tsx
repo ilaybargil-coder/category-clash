@@ -144,6 +144,11 @@ function GameView({
     stateSyncRevision: number;
     used: Set<PowerupType>;
   }>(() => ({ stateSyncRevision, used: new Set() }));
+  const [optimisticExtend, setOptimisticExtend] = useState<{
+    stateSyncRevision: number;
+    authoritativeDeadlineEpochMs: number;
+    displayedDeadlineEpochMs: number;
+  } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const handledRoundResultRef = useRef(
     state.last_round_result
@@ -159,6 +164,15 @@ function GameView({
     optimisticPowerups.stateSyncRevision === stateSyncRevision
       ? optimisticPowerups.used
       : null;
+  // The pre-command deadline is the pending flag: as soon as the reducer
+  // receives a different authoritative deadline, render that server value
+  // directly instead of applying the optimistic extension a second time.
+  const displayedDeadlineEpochMs =
+    optimisticExtend?.stateSyncRevision === stateSyncRevision &&
+    optimisticExtend.authoritativeDeadlineEpochMs === state.deadline_epoch_ms &&
+    state.phase === "ROUND_ACTIVE"
+      ? optimisticExtend.displayedDeadlineEpochMs
+      : state.deadline_epoch_ms;
 
   useEffect(() => {
     if (myTurn) inputRef.current?.focus();
@@ -230,6 +244,14 @@ function GameView({
 
   function onPowerup(type: PowerupType) {
     if (!triggerPowerup(type)) return;
+    if (type === "extend_time" && state.deadline_epoch_ms !== null) {
+      setOptimisticExtend({
+        stateSyncRevision,
+        authoritativeDeadlineEpochMs: state.deadline_epoch_ms,
+        displayedDeadlineEpochMs:
+          state.deadline_epoch_ms + state.turn_seconds * 1000,
+      });
+    }
     setOptimisticPowerups((current) => {
       const used =
         current.stateSyncRevision === stateSyncRevision
@@ -299,7 +321,7 @@ function GameView({
                 {state.question?.text ?? "ממתינים לשאלה..."}
               </h1>
               <TimerBar
-                deadlineEpochMs={state.deadline_epoch_ms}
+                deadlineEpochMs={displayedDeadlineEpochMs}
                 turnSeconds={state.turn_seconds}
                 clockOffsetMs={state.clock_offset_ms}
                 active={state.phase === "ROUND_ACTIVE"}
@@ -405,10 +427,41 @@ function GameView({
 
 type PowerupType = "swap_question" | "extend_time" | "use_joker";
 
-function PowerButton({ label, available, disabled, onClick }: { label: string; available: boolean; disabled: boolean; onClick: () => void }) {
+function PowerButton({
+  label,
+  available,
+  disabled,
+  onClick,
+}: {
+  label: string;
+  available: boolean;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  const lastTouchActivationAtRef = useRef(0);
+
+  function handlePointerDown(event: React.PointerEvent<HTMLButtonElement>) {
+    if (event.pointerType !== "touch" && event.pointerType !== "pen") return;
+    lastTouchActivationAtRef.current = Date.now();
+    onClick();
+  }
+
+  function handleClick() {
+    if (Date.now() - lastTouchActivationAtRef.current < 750) return;
+    onClick();
+  }
+
   return (
-    <button type="button" onClick={onClick} disabled={!available || disabled} className="touch-manipulation rounded-lg border border-violet-400/20 bg-violet-500/10 px-2 py-2 text-xs font-bold text-violet-200 transition-transform duration-75 active:scale-95 disabled:cursor-not-allowed disabled:opacity-30">
-      {label}{!available && " ✓"}
+    <button
+      type="button"
+      onPointerDown={handlePointerDown}
+      onClick={handleClick}
+      disabled={!available || disabled}
+      aria-pressed={!available}
+      className="touch-manipulation rounded-lg border border-violet-400/20 bg-violet-500/10 px-2 py-2 text-xs font-bold text-violet-200 transition-transform duration-75 active:scale-95 disabled:cursor-not-allowed disabled:opacity-30"
+    >
+      {label}
+      {!available && " ✓"}
     </button>
   );
 }

@@ -39,6 +39,7 @@ class Settings(BaseSettings):
 
     # Gameplay
     turn_seconds: float = 15.0
+    POWERUP_GRACE_MS: int = 600
     preview_seconds: float = 4.0
     intermission_seconds: float = 4.0
     rounds_to_win: int = 2

@@ -34,7 +34,7 @@ class EventCollector:
         return [e for e in self.events if e["type"] == event_type]
 
 
-def make_room(turn_seconds=0.15, preview=0.01, intermission=0.01):
+def make_room(turn_seconds=0.15, preview=0.01, intermission=0.01, powerup_grace_ms=600):
     events = EventCollector()
 
     async def provider(exclude_ids):
@@ -43,6 +43,7 @@ def make_room(turn_seconds=0.15, preview=0.01, intermission=0.01):
 
     config = GameConfig(
         turn_seconds=turn_seconds,
+        powerup_grace_ms=powerup_grace_ms,
         preview_seconds=preview,
         intermission_seconds=intermission,
         rounds_to_win=2,
@@ -179,7 +180,7 @@ class TestTimer:
         assert finished["winner_user_id"] == opponent
         assert finished["reason"] == "TIMEOUT"
 
-    async def test_answer_after_deadline_is_time_expired(self):
+    async def test_answer_after_deadline_is_time_expired_without_powerup_grace(self):
         room, _ = make_room(turn_seconds=5)
         await join_both(room)
         await wait_for_phase(room, RoomPhase.ROUND_ACTIVE)
@@ -189,6 +190,20 @@ class TestTimer:
         # Simulate the race: the deadline passed but the timer task has not
         # fired yet, and an answer arrives.
         room.turn_deadline = asyncio.get_running_loop().time() - 0.01
+        status = await room.submit_answer(starter, "מנגו")
+        assert status == AnswerStatus.TIME_EXPIRED
+        assert room.phase == RoomPhase.ROUND_ACTIVE
+        assert room.score[opponent] == 0
+        assert not room.answers
+
+    async def test_answer_after_powerup_grace_finalizes_timeout(self):
+        room, _ = make_room(turn_seconds=5)
+        await join_both(room)
+        await wait_for_phase(room, RoomPhase.ROUND_ACTIVE)
+        starter = room.turn_user_id
+        opponent = room._other(starter)
+
+        room.turn_deadline = asyncio.get_running_loop().time() - 0.61
         status = await room.submit_answer(starter, "מנגו")
         assert status == AnswerStatus.TIME_EXPIRED
         assert room.phase in (RoomPhase.ROUND_FINISHED, RoomPhase.QUESTION_PREVIEW)
@@ -213,6 +228,32 @@ class TestTimer:
 
 
 class TestPowerUps:
+    async def test_extend_time_arriving_within_grace_after_deadline_is_honored(self):
+        room, _ = make_room(turn_seconds=0.05, powerup_grace_ms=600)
+        await join_both(room)
+        await wait_for_phase(room, RoomPhase.ROUND_ACTIVE)
+        player = room.turn_user_id
+        original_deadline = room.turn_deadline
+        await asyncio.sleep(0.06)
+
+        status = await room.use_powerup(player, "extend_time", "extend-in-grace")
+
+        assert status == PowerUpStatus.USED
+        assert room.phase == RoomPhase.ROUND_ACTIVE
+        assert room.turn_deadline == original_deadline + room.config.turn_seconds
+
+    async def test_extend_time_after_grace_is_rejected(self):
+        room, _ = make_room(turn_seconds=5, powerup_grace_ms=600)
+        await join_both(room)
+        await wait_for_phase(room, RoomPhase.ROUND_ACTIVE)
+        player = room.turn_user_id
+        room.turn_deadline = asyncio.get_running_loop().time() - 0.61
+
+        status = await room.use_powerup(player, "extend_time", "extend-too-late")
+
+        assert status == PowerUpStatus.NOT_AVAILABLE
+        assert "extend_time" not in room.powerups_used[player]
+
     async def test_extend_time_once_per_player(self):
         room, _ = make_room(turn_seconds=5)
         await join_both(room)

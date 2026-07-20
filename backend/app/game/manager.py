@@ -27,6 +27,7 @@ _CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"
 def game_config_from_settings() -> GameConfig:
     return GameConfig(
         turn_seconds=settings.turn_seconds,
+        powerup_grace_ms=settings.POWERUP_GRACE_MS,
         preview_seconds=settings.preview_seconds,
         intermission_seconds=settings.intermission_seconds,
         rounds_to_win=settings.rounds_to_win,

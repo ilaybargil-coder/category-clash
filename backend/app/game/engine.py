@@ -54,6 +54,7 @@ class PowerUpStatus(str, Enum):
 @dataclass
 class GameConfig:
     turn_seconds: float = 15.0
+    powerup_grace_ms: int = 600
     preview_seconds: float = 4.0
     intermission_seconds: float = 4.0
     rounds_to_win: int = 2
@@ -446,7 +447,8 @@ class GameRoom:
 
     async def _watch_timer(self, gen: int, deadline: float) -> None:
         loop = asyncio.get_running_loop()
-        await asyncio.sleep(max(0.0, deadline - loop.time()))
+        effective_deadline = deadline + self.config.powerup_grace_ms / 1000
+        await asyncio.sleep(max(0.0, effective_deadline - loop.time()))
         async with self.lock:
             if gen != self._timer_gen or self.phase != RoomPhase.ROUND_ACTIVE:
                 return  # timer was superseded by a valid answer / round end
@@ -554,13 +556,17 @@ class GameRoom:
 
             loop_now = asyncio.get_running_loop().time()
             if self.turn_deadline is not None and loop_now > self.turn_deadline:
-                # The answer lost the race against the clock. Resolve the
-                # timeout right here instead of waiting for the timer task.
-                timed_out_user = self.turn_user_id
-                await self._emit("turn_timeout", user_id=timed_out_user)
-                await self._end_round_locked(
-                    winner_id=self._other(timed_out_user), reason="TIMEOUT"
-                )
+                # Answers never receive grace. During the power-up grace
+                # window, reject the answer without finalizing the turn so an
+                # in-flight power-up can still be applied. Once grace has
+                # elapsed, resolve the timeout here if the timer task has not.
+                effective_deadline = self.turn_deadline + self.config.powerup_grace_ms / 1000
+                if loop_now > effective_deadline:
+                    timed_out_user = self.turn_user_id
+                    await self._emit("turn_timeout", user_id=timed_out_user)
+                    await self._end_round_locked(
+                        winner_id=self._other(timed_out_user), reason="TIMEOUT"
+                    )
                 status = AnswerStatus.TIME_EXPIRED
                 if command_key is not None:
                     self._processed_commands[command_key] = status
@@ -625,6 +631,7 @@ class GameRoom:
         return None
 
     async def use_powerup(self, user_id: int, name: str, client_command_id: str) -> PowerUpStatus:
+        arrival_time = asyncio.get_running_loop().time()
         async with self.lock:
             cached = self._powerup_result(user_id, name, client_command_id)
             if cached is not None:
@@ -641,6 +648,13 @@ class GameRoom:
                     and self.phase in (RoomPhase.QUESTION_PREVIEW, RoomPhase.ROUND_ACTIVE)
                     and not self.answers
                 )
+            if (
+                available
+                and self.phase == RoomPhase.ROUND_ACTIVE
+                and self.turn_deadline is not None
+                and arrival_time > self.turn_deadline + self.config.powerup_grace_ms / 1000
+            ):
+                available = False
             if not available:
                 status = PowerUpStatus.NOT_AVAILABLE
                 self._processed_powerups[(user_id, client_command_id)] = status
