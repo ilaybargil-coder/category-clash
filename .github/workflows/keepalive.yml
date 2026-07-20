@@ -1,0 +1,18 @@
+# Pings the backend to prevent Render free-tier spin-down.
+# GitHub automatically disables scheduled workflows after about 60 days of repository
+# inactivity, so this workflow may need to be re-enabled.
+
+name: 'Keep Render awake'
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping backend health endpoint
+        run: curl -fsS --max-time 30 --retry 3 --retry-delay 10 https://category-clash-api.onrender.com/health
