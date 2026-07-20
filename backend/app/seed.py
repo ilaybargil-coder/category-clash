@@ -63,6 +63,7 @@ from .question_bank_expansion_v9 import (
 from .question_bank_expansion_v9 import (
     EXPANSION_V9,
 )
+from .question_bank_expansion_v10 import NEW_QUESTIONS_V10
 
 DEACTIVATED_QUESTION_TEXTS = [
     "כתבו שמות של אותיות באלף-בית העברי",
@@ -275,6 +276,7 @@ EUROPE_COUNTRY_CANONICALS = {
 EUROPE_ALLOWED_CANONICALS = EUROPE_COUNTRY_CANONICALS | {"טורקיה", "קוסובו"}
 
 QUESTIONS.extend(ADDITIONAL_QUESTIONS)
+QUESTIONS.extend(NEW_QUESTIONS_V10)
 
 for question in QUESTIONS:
     # Europe now owns its complete 44-state core plus two documented legacy
