@@ -179,6 +179,13 @@ export function submitSoloAnswer(soloId: string, text: string) {
   });
 }
 
+export function reportAnswer(questionId: number, rawText: string) {
+  return request<{ id: number }>("/api/reports", {
+    method: "POST",
+    body: JSON.stringify({ question_id: questionId, raw_text: rawText }),
+  });
+}
+
 export function revealSolo(soloId: string) {
   return request<SoloReveal>(`/api/solo/${soloId}/reveal`, { method: "POST" });
 }

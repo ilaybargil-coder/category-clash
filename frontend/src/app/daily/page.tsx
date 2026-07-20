@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useViewportHeight } from "@/hooks/useViewportHeight";
-import { API_URL, ApiError, getToken, getUser, type SoloAnswerStatus } from "@/lib/api";
+import { API_URL, ApiError, getToken, getUser, reportAnswer, type SoloAnswerStatus } from "@/lib/api";
 
 interface DailyResult {
   id: number;
@@ -88,6 +88,7 @@ export default function DailyPage() {
   const [draft, setDraft] = useState("");
   const [foundAnswers, setFoundAnswers] = useState<string[]>([]);
   const [feedback, setFeedback] = useState<Feedback[]>([]);
+  const [reportedIds, setReportedIds] = useState<Set<number>>(new Set());
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [shareMessage, setShareMessage] = useState<string | null>(null);
@@ -180,6 +181,16 @@ export default function DailyPage() {
       setMessage(cause instanceof Error ? cause.message : "שמירת התוצאה נכשלה");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function handleReport(item: Feedback) {
+    if (!today) return;
+    try {
+      await reportAnswer(today.question_id, item.text);
+      setReportedIds((previous) => new Set(previous).add(item.id));
+    } catch {
+      // Keep the answer reportable if the request fails.
     }
   }
 
@@ -281,7 +292,12 @@ export default function DailyPage() {
                 {feedback.length > 0 && (
                   <div className="flex flex-wrap gap-2">
                     {feedback.slice(-8).map((item) => (
-                      <FeedbackChip key={item.id} item={item} />
+                      <FeedbackChip
+                        key={item.id}
+                        item={item}
+                        reported={reportedIds.has(item.id)}
+                        onReport={() => void handleReport(item)}
+                      />
                     ))}
                   </div>
                 )}
@@ -383,7 +399,15 @@ export default function DailyPage() {
   );
 }
 
-function FeedbackChip({ item }: { item: Feedback }) {
+function FeedbackChip({
+  item,
+  reported,
+  onReport,
+}: {
+  item: Feedback;
+  reported: boolean;
+  onReport: () => void;
+}) {
   if (item.status === "VALID") {
     return (
       <span className="rounded-full bg-emerald-500/15 px-3 py-1.5 text-sm font-bold text-emerald-300">
@@ -400,7 +424,16 @@ function FeedbackChip({ item }: { item: Feedback }) {
   }
   return (
     <span className="rounded-full bg-rose-500/15 px-3 py-1.5 text-sm font-bold text-rose-300">
-      {item.text}: לא ברשימה
+      {item.text}: לא ברשימה{" "}
+      <button
+        type="button"
+        disabled={reported}
+        onClick={onReport}
+        onPointerDown={(event) => event.preventDefault()}
+        className="text-xs font-bold text-rose-300/70 underline"
+      >
+        {reported ? "✓ דווח" : "דווח"}
+      </button>
     </span>
   );
 }

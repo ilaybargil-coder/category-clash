@@ -9,6 +9,7 @@ import {
   getToken,
   getUser,
   nextSoloQuestion,
+  reportAnswer,
   revealSolo,
   startSolo,
   submitSoloAnswer,
@@ -34,6 +35,7 @@ export default function SoloPage() {
   const [draft, setDraft] = useState("");
   const [secondsLeft, setSecondsLeft] = useState(TURN_SECONDS);
   const [feedback, setFeedback] = useState<Feedback[]>([]);
+  const [reportedIds, setReportedIds] = useState<Set<number>>(new Set());
   const [foundCanonicals, setFoundCanonicals] = useState<string[]>([]);
   const [revealed, setRevealed] = useState<SoloRevealedAnswer[] | null>(null);
   const [questionsPlayed, setQuestionsPlayed] = useState(0);
@@ -146,6 +148,16 @@ export default function SoloPage() {
     }
   }
 
+  async function handleReport(item: Feedback) {
+    if (!question) return;
+    try {
+      await reportAnswer(question.question_id, item.text);
+      setReportedIds((previous) => new Set(previous).add(item.id));
+    } catch {
+      // Keep the answer reportable if the request fails.
+    }
+  }
+
   async function backToLobby() {
     if (question) {
       try {
@@ -198,7 +210,7 @@ export default function SoloPage() {
           {foundCanonicals.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{foundCanonicals.map((answer) => <span key={answer} className="rounded-full bg-emerald-500/15 px-3 py-1 text-sm font-bold text-emerald-300">{answer}</span>)}</div>}
         </div>
 
-        {feedback.length > 0 && !revealed && <div className="flex flex-wrap gap-2">{feedback.slice(-8).map((item) => <FeedbackChip key={item.id} item={item} />)}</div>}
+        {feedback.length > 0 && !revealed && <div className="flex flex-wrap gap-2">{feedback.slice(-8).map((item) => <FeedbackChip key={item.id} item={item} reported={reportedIds.has(item.id)} onReport={() => void handleReport(item)} />)}</div>}
 
         {message && <div className="rounded-xl border border-amber-400/20 bg-amber-500/10 p-3 text-center font-bold text-amber-300">{message}</div>}
 
@@ -234,8 +246,29 @@ export default function SoloPage() {
   );
 }
 
-function FeedbackChip({ item }: { item: Feedback }) {
+function FeedbackChip({
+  item,
+  reported,
+  onReport,
+}: {
+  item: Feedback;
+  reported: boolean;
+  onReport: () => void;
+}) {
   if (item.status === "VALID") return <span className="rounded-full bg-emerald-500/15 px-3 py-1.5 text-sm font-bold text-emerald-300">✓ {item.canonical}</span>;
   if (item.status === "DUPLICATE" || item.status === "TOO_SIMILAR") return <span className="rounded-full bg-amber-500/15 px-3 py-1.5 text-sm font-bold text-amber-300">{item.text}: כבר נאמר</span>;
-  return <span className="rounded-full bg-rose-500/15 px-3 py-1.5 text-sm font-bold text-rose-300">{item.text}: לא ברשימה</span>;
+  return (
+    <span className="rounded-full bg-rose-500/15 px-3 py-1.5 text-sm font-bold text-rose-300">
+      {item.text}: לא ברשימה{" "}
+      <button
+        type="button"
+        disabled={reported}
+        onClick={onReport}
+        onPointerDown={(event) => event.preventDefault()}
+        className="text-xs font-bold text-rose-300/70 underline"
+      >
+        {reported ? "✓ דווח" : "דווח"}
+      </button>
+    </span>
+  );
 }
