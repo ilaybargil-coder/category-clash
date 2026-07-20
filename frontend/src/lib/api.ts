@@ -57,6 +57,31 @@ export interface GameInvite {
   expires_in_seconds: number;
 }
 
+export interface XpLeaderboardEntry {
+  rank: number;
+  user_id: number;
+  display_name: string;
+  username: string;
+  level: number;
+  xp: number;
+}
+
+export interface XpLeaderboard {
+  entries: XpLeaderboardEntry[];
+  you: {
+    rank: number;
+    level: number;
+    xp: number;
+  };
+}
+
+export interface MatchXpResult {
+  xp_awarded: number;
+  new_xp: number;
+  new_level: number;
+  rank: string;
+}
+
 export type SoloAnswerStatus =
   | "VALID"
   | "INVALID"
@@ -156,6 +181,18 @@ export function fetchProfile(token: string) {
   });
 }
 
+export function fetchCurrentUser() {
+  return request<SessionUser>("/api/me");
+}
+
+export async function refreshSessionUser() {
+  const token = getToken();
+  if (!token) return null;
+  const user = await fetchCurrentUser();
+  saveSession(token, user);
+  return user;
+}
+
 export function createProfile(token: string, username: string, displayName: string) {
   return request<SessionUser>("/api/profile", {
     method: "POST",
@@ -202,6 +239,16 @@ export function fetchRoom(code: string) {
   return request<{ code: string; phase: string; players: string[]; joinable: boolean }>(
     `/api/rooms/${code}`
   );
+}
+
+export function fetchMatchXpResult(matchId: string) {
+  return request<MatchXpResult>(
+    `/api/matches/${encodeURIComponent(matchId)}/xp-result`
+  );
+}
+
+export function fetchXpLeaderboard() {
+  return request<XpLeaderboard>("/api/leaderboard/xp");
 }
 
 export function searchUsers(query: string) {

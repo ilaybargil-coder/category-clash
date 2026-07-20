@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -18,6 +18,7 @@ from ..auth import TokenUser, get_current_user
 from ..config import settings
 from ..db import get_session
 from ..game.validator import AnswerStatus, QuestionData, RoundValidator, build_question_index
+from ..leveling import DAILY_CHALLENGE_XP
 from ..models import ApprovedAnswer, DailyChallenge, DailyResult, Question, User
 
 router = APIRouter(prefix="/api/daily", tags=["daily"])
@@ -47,6 +48,7 @@ class DailyResultOut(BaseModel):
     score: int
     created_at: datetime
     share_text: str
+    xp_awarded: int
 
 
 class DailyTodayOut(BaseModel):
@@ -220,6 +222,7 @@ def _result_out(result: DailyResult) -> DailyResultOut:
         score=result.score,
         created_at=result.created_at,
         share_text=f"עניתי {result.score} תשובות היום",
+        xp_awarded=DAILY_CHALLENGE_XP,
     )
 
 
@@ -325,15 +328,22 @@ async def finish_daily(
         score=len(daily.found_answers),
     )
     result = candidate
+    created = False
     try:
         async with session.begin_nested():
             session.add(candidate)
             await session.flush()
+            created = True
     except IntegrityError:
+        created = False
         concurrent_result = await _find_result(session, current.id, challenge_date)
         if concurrent_result is None:
             raise
         result = concurrent_result
+    if created:
+        await session.execute(
+            update(User).where(User.id == current.id).values(xp=User.xp + DAILY_CHALLENGE_XP)
+        )
     await session.commit()
     _daily_sessions.pop((current.id, challenge_date), None)
     return _result_out(result)

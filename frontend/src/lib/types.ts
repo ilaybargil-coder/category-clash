@@ -69,6 +69,7 @@ export interface GameState {
   last_round_result: RoundResult | null;
   match_winner_id: number | null;
   match_end_reason: string | null;
+  match_result_seq: number | null;
   powerups: Record<string, {
     swap_question: boolean;
     extend_time: boolean;
@@ -86,6 +87,11 @@ export interface SessionUser {
   coins: number;
   wins: number;
   losses: number;
+  xp: number;
+  level: number;
+  xp_into_level: number;
+  xp_for_next_level: number;
+  rank: string;
 }
 
 export interface DemoSession {

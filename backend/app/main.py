@@ -9,6 +9,8 @@ from sqlalchemy import text
 from .api.daily import router as daily_router
 from .api.friends import router as friends_router
 from .api.invites import router as invites_router
+from .api.leaderboard import router as leaderboard_router
+from .api.matches import router as matches_router
 from .api.presence import router as presence_router
 from .api.reports import router as reports_router
 from .api.routes import router as api_router
@@ -81,5 +83,7 @@ app.include_router(friends_router)
 app.include_router(reports_router)
 app.include_router(presence_router)
 app.include_router(invites_router)
+app.include_router(leaderboard_router)
+app.include_router(matches_router)
 app.include_router(solo_router)
 app.include_router(ws_router)

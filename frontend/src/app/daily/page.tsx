@@ -4,7 +4,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeftIcon, CheckIcon, LightningIcon, ShareIcon, TrophyIcon } from "@/components/icons";
 import { useViewportHeight } from "@/hooks/useViewportHeight";
-import { API_URL, ApiError, getToken, getUser, reportAnswer, type SoloAnswerStatus } from "@/lib/api";
+import {
+  API_URL,
+  ApiError,
+  getToken,
+  getUser,
+  refreshSessionUser,
+  reportAnswer,
+  type SoloAnswerStatus,
+} from "@/lib/api";
 
 interface DailyResult {
   id: number;
@@ -13,6 +21,7 @@ interface DailyResult {
   score: number;
   created_at: string;
   share_text: string;
+  xp_awarded: number;
 }
 
 interface DailyToday {
@@ -177,7 +186,7 @@ export default function DailyPage() {
       const result = await dailyRequest<DailyResult>("/finish", { method: "POST" });
       setToday({ ...today, result });
       setActive(false);
-      await loadLeaderboard();
+      await Promise.all([loadLeaderboard(), refreshSessionUser()]);
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : "שמירת התוצאה נכשלה");
     } finally {
@@ -264,6 +273,9 @@ export default function DailyPage() {
                 <p className="text-sm font-bold text-emerald-300">האתגר הושלם</p>
                 <p className="mt-2 text-5xl font-black text-white">{today.result.score}</p>
                 <p className="mt-1 text-slate-300">תשובות תקינות</p>
+                <p className="mx-auto mt-4 w-fit rounded-full border border-amber-300/25 bg-amber-400/10 px-4 py-2 text-lg font-black text-amber-200" dir="ltr">
+                  +{today.result.xp_awarded} XP
+                </p>
                 <button
                   type="button"
                   onClick={() => void shareResult(today.result!)}

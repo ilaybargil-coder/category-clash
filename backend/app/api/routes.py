@@ -15,6 +15,7 @@ from ..auth import (
 from ..config import settings
 from ..db import get_session
 from ..game.manager import room_manager
+from ..leveling import rank_for_level, xp_progress
 from ..models import User
 
 router = APIRouter(prefix="/api")
@@ -32,6 +33,11 @@ class UserOut(BaseModel):
     coins: int
     wins: int
     losses: int
+    xp: int
+    level: int
+    xp_into_level: int
+    xp_for_next_level: int
+    rank: str
 
 
 class LoginResponse(BaseModel):
@@ -50,6 +56,8 @@ class ProfileRequest(BaseModel):
 
 
 def user_out(user: User) -> UserOut:
+    xp = getattr(user, "xp", 0)
+    level, xp_into_level, xp_for_next_level = xp_progress(xp)
     return UserOut(
         id=user.id,
         username=user.username,
@@ -57,6 +65,11 @@ def user_out(user: User) -> UserOut:
         coins=user.coins,
         wins=user.wins,
         losses=user.losses,
+        xp=xp,
+        level=level,
+        xp_into_level=xp_into_level,
+        xp_for_next_level=xp_for_next_level,
+        rank=rank_for_level(level),
     )
 
 
@@ -80,14 +93,7 @@ async def demo_users(session: AsyncSession = Depends(get_session)):
     return [
         DemoSession(
             token=create_access_token(user.id, user.username, user.display_name),
-            user=UserOut(
-                id=user.id,
-                username=user.username,
-                display_name=user.display_name,
-                coins=user.coins,
-                wins=user.wins,
-                losses=user.losses,
-            ),
+            user=user_out(user),
         )
         for user in users
     ]
@@ -108,14 +114,7 @@ async def demo_login(body: LoginRequest, session: AsyncSession = Depends(get_ses
         raise HTTPException(status_code=401, detail="Bad username or password")
     return LoginResponse(
         token=create_access_token(user.id, user.username, user.display_name),
-        user=UserOut(
-            id=user.id,
-            username=user.username,
-            display_name=user.display_name,
-            coins=user.coins,
-            wins=user.wins,
-            losses=user.losses,
-        ),
+        user=user_out(user),
     )
 
 

@@ -33,13 +33,16 @@ import {
   clearSession,
   createRoom,
   fetchDemoUsers,
+  fetchXpLeaderboard,
   getUser,
+  refreshSessionUser,
   saveSession,
 } from "@/lib/api";
 import {
   SUPABASE_AUTH_CONFIGURED,
   SUPABASE_AUTH_ENABLED,
 } from "@/lib/supabase";
+import type { XpLeaderboard, XpLeaderboardEntry } from "@/lib/api";
 import type { DemoSession, SessionUser } from "@/lib/types";
 
 interface UserStats {
@@ -67,6 +70,21 @@ function HomeView({
   const router = useRouter();
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [leaderboard, setLeaderboard] = useState<XpLeaderboard | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchXpLeaderboard()
+      .then((result) => {
+        if (!cancelled) setLeaderboard(result);
+      })
+      .catch(() => {
+        // The rest of the dashboard stays usable if this secondary widget fails.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function createGame() {
     setCreating(true);
@@ -127,10 +145,116 @@ function HomeView({
         </div>
       </section>
 
+      <LevelProgress user={user} />
       <StatsStrip user={user} stats={stats} />
+      <XpLeaderboardPanel user={user} leaderboard={leaderboard} />
       <DashboardFriendsCarousel onOpenFriends={() => onNavigate("friends")} />
       <div className="mobile-home-widgets"><DashboardWidgets /></div>
     </div>
+  );
+}
+
+function LevelProgress({ user }: { user: SessionUser }) {
+  const progress = Math.min(
+    100,
+    Math.round((user.xp_into_level / user.xp_for_next_level) * 100)
+  );
+  return (
+    <section className="surface-panel rounded-2xl p-4" aria-label="התקדמות רמה">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-xs font-bold text-violet-300">Level {user.level}</p>
+          <h2 className="mt-1 text-lg font-black text-white">הדרך לרמה הבאה</h2>
+        </div>
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300/20 bg-amber-400/10 px-3 py-1.5 text-sm font-black text-amber-200">
+          <TrophyIcon className="h-4 w-4" /> {user.rank}
+        </span>
+      </div>
+      <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-white/10">
+        <div
+          className="h-full rounded-full bg-gradient-to-l from-violet-400 to-fuchsia-500 transition-[width]"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+      <p className="mt-2 text-left text-xs font-bold text-slate-400" dir="ltr">
+        {user.xp_into_level}/{user.xp_for_next_level} XP
+      </p>
+    </section>
+  );
+}
+
+function XpLeaderboardPanel({
+  user,
+  leaderboard,
+}: {
+  user: SessionUser;
+  leaderboard: XpLeaderboard | null;
+}) {
+  const entries = leaderboard?.entries.slice(0, 5) ?? [];
+  const currentEntry = leaderboard?.entries.find((entry) => entry.user_id === user.id);
+  const currentIsVisible = entries.some((entry) => entry.user_id === user.id);
+  const yourEntry: XpLeaderboardEntry | null = leaderboard
+    ? currentEntry ?? {
+        rank: leaderboard.you.rank,
+        user_id: user.id,
+        display_name: user.display_name,
+        username: user.username,
+        level: leaderboard.you.level,
+        xp: leaderboard.you.xp,
+      }
+    : null;
+
+  return (
+    <section className="surface-panel rounded-2xl p-4" aria-label="טבלת מובילים לפי XP">
+      <div className="section-heading">
+        <div>
+          <span className="text-xs font-bold text-violet-300">גלובלי</span>
+          <h2>טבלת מובילים</h2>
+        </div>
+        <TrophyIcon className="h-5 w-5 text-amber-300" />
+      </div>
+      {!leaderboard ? (
+        <p className="mt-4 text-center text-sm text-slate-500">טוענים דירוג…</p>
+      ) : (
+        <ol className="mt-4 space-y-2">
+          {entries.map((entry) => (
+            <XpLeaderboardRow key={entry.user_id} entry={entry} current={entry.user_id === user.id} />
+          ))}
+          {!currentIsVisible && yourEntry && (
+            <>
+              <li className="text-center text-xs tracking-[0.2em] text-slate-600">•••</li>
+              <XpLeaderboardRow entry={yourEntry} current />
+            </>
+          )}
+        </ol>
+      )}
+    </section>
+  );
+}
+
+function XpLeaderboardRow({
+  entry,
+  current,
+}: {
+  entry: XpLeaderboardEntry;
+  current: boolean;
+}) {
+  return (
+    <li
+      className={`grid grid-cols-[2rem_minmax(0,1fr)_auto_auto] items-center gap-3 rounded-xl border px-3 py-2.5 ${
+        current
+          ? "border-violet-400/35 bg-violet-500/10"
+          : "border-white/10 bg-white/[0.025]"
+      }`}
+    >
+      <strong className="text-center text-amber-300">{entry.rank}</strong>
+      <div className="min-w-0">
+        <p className="truncate text-sm font-bold text-white">{entry.display_name}</p>
+        <p className="truncate text-xs text-slate-500" dir="ltr">@{entry.username}</p>
+      </div>
+      <span className="text-xs font-bold text-violet-300">Level {entry.level}</span>
+      <strong className="text-sm text-emerald-300" dir="ltr">{entry.xp} XP</strong>
+    </li>
   );
 }
 
@@ -335,11 +459,27 @@ function AuthenticatedLobby() {
 function DemoLobby() {
   const [demoUsers, setDemoUsers] = useState<DemoSession[]>([]);
   const [user, setUser] = useState<SessionUser | null>(() => getUser());
+  const userId = user?.id;
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchDemoUsers().then(setDemoUsers).catch(() => setError("השרת זמין, אבל נתוני הדמו עדיין לא מוכנים."));
   }, []);
+
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    refreshSessionUser()
+      .then((freshUser) => {
+        if (!cancelled && freshUser) setUser(freshUser);
+      })
+      .catch(() => {
+        // Keep the cached demo profile available while the backend wakes.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   if (user) {
     return <LobbyDashboard user={user} onSignOut={() => { clearSession(); setUser(null); }} />;

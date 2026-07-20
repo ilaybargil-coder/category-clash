@@ -8,6 +8,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlalchemy.orm import selectinload
 
+from ..leveling import LOSS_XP, WIN_XP, win_streak_bonus
 from ..models import ApprovedAnswer, Match, Question, Round, SubmittedAnswer, User
 from .engine import ResultSink
 from .validator import QuestionData, build_question_index
@@ -157,10 +158,29 @@ class DbResultSink(ResultSink):
             match.status = "FINISHED" if reason == "SCORE" else "FORFEITED"
             match.finished_at = func.now()
             loser_id = match.player2_id if winner_id == match.player1_id else match.player1_id
-            await session.execute(
-                update(User).where(User.id == winner_id).values(wins=User.wins + 1)
-            )
-            await session.execute(
-                update(User).where(User.id == loser_id).values(losses=User.losses + 1)
-            )
+            users = {
+                user.id: user
+                for user in (
+                    (
+                        await session.execute(
+                            select(User)
+                            .where(User.id.in_(sorted((winner_id, loser_id))))
+                            .order_by(User.id)
+                            .with_for_update()
+                        )
+                    )
+                    .scalars()
+                    .all()
+                )
+            }
+            winner = users[winner_id]
+            loser = users[loser_id]
+
+            winner.wins += 1
+            winner.win_streak += 1
+            winner.xp += WIN_XP + win_streak_bonus(winner.win_streak)
+
+            loser.losses += 1
+            loser.xp += LOSS_XP
+            loser.win_streak = 0
             await session.commit()

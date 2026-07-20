@@ -45,6 +45,10 @@ export function applyServerEvent(
       event_id: event.event_id ?? "",
       protocol_version: event.protocol_version ?? 0,
       answers,
+      match_result_seq:
+        snap.phase === "MATCH_FINISHED"
+          ? snap.match_result_seq ?? snap.seq
+          : null,
       clock_offset_ms: offset ?? 0,
     };
   }
@@ -77,6 +81,7 @@ export function applyServerEvent(
       next.last_round_result = null;
       next.match_winner_id = (event.match_winner_id as number | null) ?? null;
       next.match_end_reason = (event.match_end_reason as string | null) ?? null;
+      next.match_result_seq = null;
       next.powerups = event.powerups as GameState["powerups"];
       next.rematch = event.rematch as GameState["rematch"];
       break;
@@ -131,6 +136,7 @@ export function applyServerEvent(
       next.phase = "MATCH_FINISHED";
       next.match_winner_id = event.winner_user_id as number;
       next.match_end_reason = event.reason as string;
+      next.match_result_seq = event.seq as number;
       next.score = event.score as ScoreEntry[];
       next.deadline_epoch_ms = null;
       next.rematch = event.rematch as GameState["rematch"];

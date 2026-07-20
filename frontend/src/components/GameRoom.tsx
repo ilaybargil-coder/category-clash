@@ -15,6 +15,7 @@ import {
 } from "@/components/icons";
 import { useGameSocket } from "@/hooks/useGameSocket";
 import { useViewportHeight } from "@/hooks/useViewportHeight";
+import { fetchMatchXpResult, refreshSessionUser } from "@/lib/api";
 import { BrandMark, UserAvatar } from "./VisualShell";
 import AnswerFeed from "./AnswerFeed";
 import TimerBar from "./TimerBar";
@@ -151,6 +152,10 @@ function GameView({
 
   const [draft, setDraft] = useState("");
   const [soundMuted, setSoundMuted] = useState(false);
+  const [xpResult, setXpResult] = useState<{
+    key: string;
+    xpAwarded: number;
+  } | null>(null);
   const [optimisticPowerups, setOptimisticPowerups] = useState<{
     stateSyncRevision: number;
     used: Set<PowerupType>;
@@ -171,6 +176,11 @@ function GameView({
       ? `${state.match_winner_id}:${state.match_end_reason}`
       : null
   );
+  const loadedXpResultRef = useRef<string | null>(null);
+  const matchResultKey =
+    state.phase === "MATCH_FINISHED" && state.match_result_seq !== null
+      ? `${state.code}:${state.match_result_seq}`
+      : null;
   const optimisticallyUsed =
     optimisticPowerups.stateSyncRevision === stateSyncRevision
       ? optimisticPowerups.used
@@ -230,6 +240,29 @@ function GameView({
     state.phase,
     state.you,
   ]);
+
+  useEffect(() => {
+    if (!matchResultKey) {
+      loadedXpResultRef.current = null;
+      return;
+    }
+    if (loadedXpResultRef.current === matchResultKey) return;
+    loadedXpResultRef.current = matchResultKey;
+    let cancelled = false;
+    fetchMatchXpResult(state.code)
+      .then((result) => {
+        if (!cancelled) {
+          setXpResult({ key: matchResultKey, xpAwarded: result.xp_awarded });
+        }
+        void refreshSessionUser();
+      })
+      .catch(() => {
+        // The match result remains usable if the secondary XP request fails.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [matchResultKey, state.code]);
 
   function onToggleMute() {
     setSoundMuted(toggleMute());
@@ -424,6 +457,9 @@ function GameView({
       {state.phase === "MATCH_FINISHED" && (
         <MatchResultOverlay
           state={state}
+          xpAwarded={
+            xpResult?.key === matchResultKey ? xpResult.xpAwarded : null
+          }
           reconnecting={reconnecting}
           requestRematch={requestRematch}
         />
@@ -662,10 +698,12 @@ function RoundResultOverlay({ state }: { state: GameState }) {
 
 function MatchResultOverlay({
   state,
+  xpAwarded,
   reconnecting,
   requestRematch,
 }: {
   state: GameState;
+  xpAwarded: number | null;
   reconnecting: boolean;
   requestRematch: () => boolean;
 }) {
@@ -694,6 +732,11 @@ function MatchResultOverlay({
           : `${winner?.display_name} ניצח/ה את המשחק`}
       </p>
       <ScoreLine state={state} />
+      {xpAwarded !== null && (
+        <div className="mx-auto mt-4 w-fit rounded-full border border-amber-300/25 bg-amber-400/10 px-4 py-2 text-lg font-black text-amber-200" dir="ltr">
+          +{xpAwarded} XP
+        </div>
+      )}
       {opponentRequested && (
         <p className="mt-5 font-bold text-emerald-300">היריב רוצה רימאטצ&apos;</p>
       )}
