@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { ArrowLeftIcon, CoinIcon, LightningIcon } from "@/components/icons";
 import type { SessionUser } from "@/lib/types";
 
 export type DashboardView =
@@ -84,7 +85,9 @@ export function BrandMark({ compact = false }: { compact?: boolean }) {
       <div className="brand-symbol" aria-hidden="true">
         <span className="brand-card brand-card--purple" />
         <span className="brand-card brand-card--cream" />
-        <span className="brand-bolt">ϟ</span>
+        <span className="brand-bolt">
+          <LightningIcon size={compact ? 30 : 48} />
+        </span>
       </div>
       <div>
         <div className="brand-title">קרב קטגוריות</div>
@@ -116,7 +119,7 @@ export function CoinPill({ coins }: { coins: number }) {
   return (
     <div className="coin-pill" aria-label={`${coins} מטבעות`}>
       <span>{coins.toLocaleString("he-IL")}</span>
-      <span className="coin-icon" aria-hidden="true">●</span>
+      <span className="coin-icon" aria-hidden="true"><CoinIcon className="h-3.5 w-3.5" /></span>
     </div>
   );
 }
@@ -165,11 +168,11 @@ export function DesktopSidebar({
 function DailyChallengeWidget() {
   return (
     <section className="dashboard-widget daily-widget">
-      <div className="daily-widget__icon" aria-hidden="true">⚡</div>
+      <div className="daily-widget__icon" aria-hidden="true"><LightningIcon className="h-5 w-5" /></div>
       <div className="min-w-0 flex-1">
         <span>האתגר היומי</span>
         <h2>מוכנים לאתגר של היום?</h2>
-        <Link href="/daily" className="daily-widget__link">לאתגר היומי ←</Link>
+        <Link href="/daily" className="daily-widget__link">לאתגר היומי <ArrowLeftIcon className="h-3.5 w-3.5" /></Link>
       </div>
     </section>
   );

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { CheckIcon, TargetIcon } from "@/components/icons";
 import { useViewportHeight } from "@/hooks/useViewportHeight";
 import {
   ApiError,
@@ -190,7 +191,7 @@ export default function SoloPage() {
       <div className="surface-panel mx-auto flex h-full min-h-0 max-w-2xl flex-col overflow-hidden rounded-2xl">
       <header className="shrink-0 border-b border-white/10 bg-violet-600/10 px-5 py-5 text-white">
         <div className="flex items-center justify-between text-sm font-bold text-violet-100">
-          <span>משחק יחיד 🎯</span>
+          <span>משחק יחיד <TargetIcon className="inline-block h-4 w-4 align-middle" /></span>
           <span>שאלות: {questionsPlayed} · תשובות: {totalFound}</span>
         </div>
         <h1 className="mx-auto mt-5 max-w-xl text-center text-2xl font-black leading-snug">{question.question_text}</h1>
@@ -255,7 +256,7 @@ function FeedbackChip({
   reported: boolean;
   onReport: () => void;
 }) {
-  if (item.status === "VALID") return <span className="rounded-full bg-emerald-500/15 px-3 py-1.5 text-sm font-bold text-emerald-300">✓ {item.canonical}</span>;
+  if (item.status === "VALID") return <span className="rounded-full bg-emerald-500/15 px-3 py-1.5 text-sm font-bold text-emerald-300"><CheckIcon className="inline-block h-4 w-4 align-middle" /> {item.canonical}</span>;
   if (item.status === "DUPLICATE" || item.status === "TOO_SIMILAR") return <span className="rounded-full bg-amber-500/15 px-3 py-1.5 text-sm font-bold text-amber-300">{item.text}: כבר נאמר</span>;
   return (
     <span className="rounded-full bg-rose-500/15 px-3 py-1.5 text-sm font-bold text-rose-300">
@@ -267,7 +268,7 @@ function FeedbackChip({
         onPointerDown={(event) => event.preventDefault()}
         className="text-xs font-bold text-rose-300/70 underline"
       >
-        {reported ? "✓ דווח" : "דווח"}
+        {reported ? <><CheckIcon className="inline-block h-3.5 w-3.5 align-middle" /> דווח</> : "דווח"}
       </button>
     </span>
   );

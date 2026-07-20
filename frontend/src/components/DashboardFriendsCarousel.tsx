@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ArrowLeftIcon } from "@/components/icons";
 import { UserAvatar } from "@/components/VisualShell";
 import {
   fetchFriends,
@@ -67,7 +68,7 @@ export default function DashboardFriendsCarousel({
           <span>הצוות שלכם</span>
           <h2>חברים למשחק</h2>
         </div>
-        <button type="button" onClick={onOpenFriends}>לכל החברים ←</button>
+        <button type="button" onClick={onOpenFriends}>לכל החברים <ArrowLeftIcon className="inline-block h-3.5 w-3.5 align-middle" /></button>
       </div>
 
       {error && <p className="inline-error mt-3">{error}</p>}

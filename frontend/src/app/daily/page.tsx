@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ArrowLeftIcon, CheckIcon, LightningIcon, ShareIcon, TrophyIcon } from "@/components/icons";
 import { useViewportHeight } from "@/hooks/useViewportHeight";
 import { API_URL, ApiError, getToken, getUser, reportAnswer, type SoloAnswerStatus } from "@/lib/api";
 
@@ -246,10 +247,10 @@ export default function DailyPage() {
               onClick={() => router.push("/")}
               className="absolute right-4 top-4 text-sm font-bold text-slate-400 hover:text-white"
             >
-              חזרה ללובי ←
+              חזרה ללובי <ArrowLeftIcon className="inline-block h-4 w-4 align-middle" />
             </button>
             <p className="relative mt-7 text-xs font-black tracking-[0.16em] text-amber-300 sm:mt-0">
-              האתגר היומי ⚡
+              האתגר היומי <LightningIcon className="inline-block h-4 w-4 align-middle" />
             </p>
             <h1 className="relative mx-auto mt-4 max-w-2xl text-2xl font-black leading-snug text-white sm:text-3xl">
               {today.question_text}
@@ -268,7 +269,7 @@ export default function DailyPage() {
                   onClick={() => void shareResult(today.result!)}
                   className="primary-button mt-6 w-full px-6 py-3 sm:w-auto"
                 >
-                  שיתוף התוצאה ↗
+                  שיתוף התוצאה <ShareIcon className="inline-block h-4 w-4 align-middle" />
                 </button>
                 {shareMessage && <p className="mt-3 text-sm font-bold text-slate-300">{shareMessage}</p>}
               </section>
@@ -363,7 +364,7 @@ export default function DailyPage() {
               <p className="text-xs font-bold text-violet-300">היום</p>
               <h2 className="mt-1 text-xl font-black text-white">טבלת המובילים</h2>
             </div>
-            <span className="text-2xl">🏆</span>
+            <span className="text-2xl"><TrophyIcon className="h-6 w-6" /></span>
           </div>
           {leaderboard.length === 0 ? (
             <p className="mt-6 rounded-xl border border-white/10 p-4 text-center text-sm text-slate-500">
@@ -411,7 +412,7 @@ function FeedbackChip({
   if (item.status === "VALID") {
     return (
       <span className="rounded-full bg-emerald-500/15 px-3 py-1.5 text-sm font-bold text-emerald-300">
-        ✓ {item.canonical}
+        <CheckIcon className="inline-block h-4 w-4 align-middle" /> {item.canonical}
       </span>
     );
   }
@@ -432,7 +433,7 @@ function FeedbackChip({
         onPointerDown={(event) => event.preventDefault()}
         className="text-xs font-bold text-rose-300/70 underline"
       >
-        {reported ? "✓ דווח" : "דווח"}
+        {reported ? <><CheckIcon className="inline-block h-3.5 w-3.5 align-middle" /> דווח</> : "דווח"}
       </button>
     </span>
   );

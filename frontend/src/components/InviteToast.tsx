@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { GamepadIcon } from "@/components/icons";
 import { useIncomingInvites } from "@/hooks/useIncomingInvites";
 import { acceptInvite, declineInvite } from "@/lib/api";
 
@@ -72,7 +73,7 @@ export default function InviteToast() {
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span aria-hidden="true" className="text-xl">
-            ⚔️
+            <GamepadIcon className="h-5 w-5" />
           </span>
           <p className="font-black text-white">
             {invite.sender.display_name} מזמין אותך למשחק!

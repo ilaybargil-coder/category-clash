@@ -1,16 +1,17 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
+import { CheckIcon, LosesIcon, SimilarIcon, TargetIcon } from "@/components/icons";
 import { playAccept, playDuplicate, playReject } from "@/lib/sfx";
 import type { AnswerItem, PlayerInfo } from "@/lib/types";
 
 const STATUS_META: Record<
   string,
-  { icon: string; label: string | null; tone: string }
+  { icon: ReactNode; label: string | null; tone: string }
 > = {
-  VALID: { icon: "✓", label: null, tone: "text-emerald-700 bg-emerald-100" },
+  VALID: { icon: <CheckIcon className="h-3.5 w-3.5" />, label: null, tone: "text-emerald-700 bg-emerald-100" },
   INVALID: {
-    icon: "✕",
+    icon: <LosesIcon className="h-3.5 w-3.5" />,
     label: "לא מתאים לשאלה",
     tone: "text-rose-700 bg-rose-100",
   },
@@ -20,7 +21,7 @@ const STATUS_META: Record<
     tone: "text-amber-700 bg-amber-100",
   },
   TOO_SIMILAR: {
-    icon: "≈",
+    icon: <SimilarIcon className="h-3.5 w-3.5" />,
     label: "זהה במשמעות לתשובה קודמת",
     tone: "text-amber-700 bg-amber-100",
   },
@@ -71,7 +72,7 @@ export default function AnswerFeed({ answers, myUserId, players }: Props) {
       {answers.length === 0 && (
         <div className="my-auto text-center">
           <div className="mx-auto grid h-12 w-12 place-items-center rounded-full border border-white/10 bg-white/[0.025] text-xl text-slate-500">
-            ◌
+            <TargetIcon className="h-5 w-5" />
           </div>
           <p className="mt-3 text-sm font-bold text-slate-500">הזירה עדיין ריקה</p>
           <p className="mt-1 text-xs text-slate-600">התשובה הראשונה תופיע כאן</p>

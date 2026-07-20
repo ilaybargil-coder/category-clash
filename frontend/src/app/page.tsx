@@ -1,12 +1,22 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import AuthScreen from "@/components/AuthScreen";
 import DashboardFriendsCarousel from "@/components/DashboardFriendsCarousel";
 import FriendsPanel from "@/components/FriendsPanel";
 import InviteToast from "@/components/InviteToast";
+import {
+  AccuracyIcon,
+  GamepadIcon,
+  LightningIcon,
+  LosesIcon,
+  PlusIcon,
+  TargetIcon,
+  TrophyIcon,
+  WaveIcon,
+} from "@/components/icons";
 import {
   BrandMark,
   CoinPill,
@@ -75,7 +85,7 @@ function HomeView({
       <header className="view-greeting">
         <div>
           <span>מוכנים לסיבוב הבא?</span>
-          <h1>שלום {user.display_name}! 👋</h1>
+          <h1>שלום {user.display_name}! <WaveIcon className="inline-block h-[1em] w-[1em] align-[-0.12em]" /></h1>
         </div>
       </header>
 
@@ -107,10 +117,10 @@ function HomeView({
           </div>
           <div className="hero-actions">
             <button type="button" onClick={() => void createGame()} disabled={creating} className="primary-button">
-              {creating ? "פותחים זירה…" : "＋ משחק חדש"}
+              {creating ? "פותחים זירה…" : <><PlusIcon className="inline-block h-4 w-4 align-middle" /> משחק חדש</>}
             </button>
             <button type="button" onClick={() => router.push("/daily")} className="secondary-button">
-              אתגר יומי ⚡
+              אתגר יומי <LightningIcon className="inline-block h-4 w-4 align-middle" />
             </button>
           </div>
           {error && <p className="inline-error">{error}</p>}
@@ -126,10 +136,10 @@ function HomeView({
 
 function StatsStrip({ user, stats }: { user: SessionUser; stats: UserStats }) {
   const statItems = [
-    { label: "משחקים", value: stats.games, icon: "🎮" },
-    { label: "נצחונות", value: user.wins, icon: "🏆" },
-    { label: "הפסדים", value: user.losses, icon: "◌" },
-    { label: "דיוק", value: `${stats.accuracy}%`, icon: "◎" },
+    { label: "משחקים", value: stats.games, icon: <GamepadIcon className="h-5 w-5" /> },
+    { label: "נצחונות", value: user.wins, icon: <TrophyIcon className="h-5 w-5" /> },
+    { label: "הפסדים", value: user.losses, icon: <LosesIcon className="h-5 w-5" /> },
+    { label: "דיוק", value: `${stats.accuracy}%`, icon: <AccuracyIcon className="h-5 w-5" /> },
   ];
 
   return (
@@ -173,9 +183,9 @@ function GameActions({ user }: { user: SessionUser }) {
     <div className="dashboard-view">
       <ViewHeading eyebrow={`הזירה של ${user.display_name}`} title="בוחרים מצב משחק" description="קרב מול חברים, אתגר יומי או אימון בקצב שלכם." />
       <section className="game-mode-grid">
-        <GameModeCard icon="⚔" label="מול חבר" title="משחק חדש" description="פתחו חדר פרטי והזמינו חבר לקרב בזמן אמת." action={creating ? "פותחים…" : "פתיחת חדר"} onClick={() => void createGame()} primary disabled={creating} />
-        <GameModeCard icon="⚡" label="פעם ביום" title="האתגר היומי" description="אותה קטגוריה לכולם. כמה גבוה תגיעו היום?" action="לאתגר היומי" onClick={() => router.push("/daily")} />
-        <GameModeCard icon="🎯" label="אימון חופשי" title="משחק יחיד" description="חדדו מהירות וגלו תשובות חדשות בלי לחץ." action="מתחילים להתאמן" onClick={() => router.push("/solo")} />
+        <GameModeCard icon={<GamepadIcon className="h-6 w-6" />} label="מול חבר" title="משחק חדש" description="פתחו חדר פרטי והזמינו חבר לקרב בזמן אמת." action={creating ? "פותחים…" : "פתיחת חדר"} onClick={() => void createGame()} primary disabled={creating} />
+        <GameModeCard icon={<LightningIcon className="h-6 w-6" />} label="פעם ביום" title="האתגר היומי" description="אותה קטגוריה לכולם. כמה גבוה תגיעו היום?" action="לאתגר היומי" onClick={() => router.push("/daily")} />
+        <GameModeCard icon={<TargetIcon className="h-6 w-6" />} label="אימון חופשי" title="משחק יחיד" description="חדדו מהירות וגלו תשובות חדשות בלי לחץ." action="מתחילים להתאמן" onClick={() => router.push("/solo")} />
       </section>
       <section className="join-room-panel surface-panel">
         <div>
@@ -203,7 +213,7 @@ function GameModeCard({
   primary = false,
   disabled = false,
 }: {
-  icon: string;
+  icon: ReactNode;
   label: string;
   title: string;
   description: string;
