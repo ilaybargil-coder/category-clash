@@ -287,14 +287,14 @@ function GameView({
               <span className="lg:hidden">עד {state.rounds_to_win} ניצחונות</span>
             </div>
 
-            <div className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 py-3 lg:hidden">
+            <div className="kb-hide grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 py-3 lg:hidden">
               <PlayerBadge player={me} points={pointsOf(me?.user_id)} isYou />
               <span className="text-sm font-black text-slate-600">VS</span>
               <PlayerBadge player={opponent} points={pointsOf(opponent?.user_id)} />
             </div>
 
-            <section className="game-question mx-3 shrink-0 rounded-xl bg-[#f7f0df] px-4 py-3 text-center text-slate-900 shadow-[0_8px_30px_rgba(0,0,0,0.22)] sm:mx-5 sm:px-7 sm:py-4">
-              <p className="text-[10px] font-bold text-slate-500 sm:text-xs">קטגוריה</p>
+            <section className="game-question kb-compact mx-3 shrink-0 rounded-xl bg-[#f7f0df] px-4 py-3 text-center text-slate-900 shadow-[0_8px_30px_rgba(0,0,0,0.22)] sm:mx-5 sm:px-7 sm:py-4">
+              <p className="kb-category-label text-[10px] font-bold text-slate-500 sm:text-xs">קטגוריה</p>
               <h1 className="mt-1 min-h-12 text-lg font-black leading-snug sm:text-2xl">
                 {state.question?.text ?? "ממתינים לשאלה..."}
               </h1>

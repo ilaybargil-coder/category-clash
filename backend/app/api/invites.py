@@ -68,6 +68,18 @@ async def create_invite(
 
     client = await get_redis()
     key = invite_key(target.id, current.id)
+    reverse_key = invite_key(current.id, target.id)
+    try:
+        reverse_value = await client.getdel(reverse_key)
+    except RedisError as exc:
+        raise redis_unavailable(exc) from exc
+    if reverse_value is not None:
+        reverse_invite = json.loads(reverse_value)
+        return CreatedInviteOut(
+            room_code=str(reverse_invite["room_code"]),
+            expires_in_seconds=settings.invite_ttl_seconds,
+        )
+
     room = room_manager.create_room()
     value = json.dumps({"room_code": room.code, "sender_id": current.id})
     try:

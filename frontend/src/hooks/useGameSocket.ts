@@ -132,7 +132,10 @@ export function useGameSocket(code: string) {
             ws.send(JSON.stringify(pendingAnswerRef.current));
           }
         }
-        if (event.type === "state_sync") {
+        if (
+          event.type === "state_sync" ||
+          (event.type === "round_started" && event.round_no === 1)
+        ) {
           setStateSyncRevision((revision) => revision + 1);
         }
         setState((prev) => applyServerEvent(prev, event));

@@ -8,6 +8,7 @@ from sqlalchemy import delete, or_
 from app.auth import create_access_token
 from app.config import settings
 from app.db import SessionLocal, engine
+from app.game.manager import room_manager
 from app.main import app
 from app.models import Friendship, User
 from app.redis import close_redis, get_redis
@@ -164,3 +165,30 @@ async def test_duplicate_pending_invite_is_rejected(client, invite_users) -> Non
     assert first.status_code == 200
     assert duplicate.status_code == 409
     assert duplicate.json()["detail"] == "Invite already pending"
+
+
+async def test_mutual_invite_reuses_and_consumes_first_invite(client, invite_users) -> None:
+    sender, friend, _ = invite_users
+    existing_room_codes = set(room_manager.rooms)
+
+    first = await client.post(
+        "/api/invites",
+        headers=auth_headers(sender),
+        json={"username": friend.username},
+    )
+    assert first.status_code == 200
+    room_code = first.json()["room_code"]
+
+    mutual = await client.post(
+        "/api/invites",
+        headers=auth_headers(friend),
+        json={"username": sender.username},
+    )
+    assert mutual.status_code == 200
+    assert mutual.json()["room_code"] == room_code
+    assert set(room_manager.rooms) - existing_room_codes == {room_code}
+
+    sender_incoming = await client.get("/api/invites", headers=auth_headers(sender))
+    friend_incoming = await client.get("/api/invites", headers=auth_headers(friend))
+    assert sender_incoming.json() == []
+    assert friend_incoming.json() == []

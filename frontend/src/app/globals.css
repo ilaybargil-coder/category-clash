@@ -289,31 +289,38 @@
     transition: margin-top 160ms ease, min-height 160ms ease;
   }
 
-  html[data-kb="open"] .game-question {
-    padding-block: 0.5rem;
-  }
-
-  html[data-kb="open"] .game-question > h1 {
-    margin-top: 0.125rem;
-    min-height: 2rem;
-    font-size: 1rem;
-  }
-
-  html[data-kb="open"] .game-question > h1 + div {
-    margin-top: 0.25rem;
-  }
-
-  html[data-kb="open"] .game-question > h1 + div + p {
-    margin-top: 0;
-    min-height: 1rem;
-  }
-
   .surface-panel > .answer-feed {
     min-height: 6rem;
   }
 
-  @media (min-width: 640px) {
-    html[data-kb="open"] .game-question > h1 {
+  @media (max-width: 1023px) {
+    html[data-kb="open"] .kb-hide,
+    html[data-kb="open"] .kb-category-label {
+      display: none;
+    }
+
+    html[data-kb="open"] .kb-compact {
+      padding-block: 0.5rem;
+    }
+
+    html[data-kb="open"] .kb-compact > h1 {
+      margin-top: 0.125rem;
+      min-height: 2rem;
+      font-size: 1rem;
+    }
+
+    html[data-kb="open"] .kb-compact > h1 + div {
+      margin-top: 0.25rem;
+    }
+
+    html[data-kb="open"] .kb-compact > h1 + div + p {
+      margin-top: 0;
+      min-height: 1rem;
+    }
+  }
+
+  @media (min-width: 640px) and (max-width: 1023px) {
+    html[data-kb="open"] .kb-compact > h1 {
       font-size: 1.25rem;
     }
   }
