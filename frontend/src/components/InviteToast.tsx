@@ -68,7 +68,7 @@ export default function InviteToast() {
     <aside
       dir="rtl"
       aria-live="polite"
-      className="surface-panel fixed inset-x-3 bottom-20 z-50 mx-auto flex max-w-md items-center gap-3 rounded-2xl border-violet-400/30 bg-violet-950/95 p-4 shadow-2xl lg:inset-x-auto lg:bottom-6 lg:right-6 lg:mx-0 lg:w-96"
+      className="ui-toast surface-panel fixed inset-x-3 bottom-20 z-50 mx-auto flex max-w-md items-center gap-3 rounded-2xl border-violet-400/30 bg-violet-950/95 p-4 shadow-2xl lg:inset-x-auto lg:bottom-6 lg:right-6 lg:mx-0 lg:w-96"
     >
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
