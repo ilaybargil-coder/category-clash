@@ -136,10 +136,10 @@ function HomeView({
           </div>
           <div className="hero-actions">
             <button type="button" onClick={() => void createGame()} disabled={creating} className="primary-button">
-              {creating ? "פותחים זירה…" : <><PlusIcon className="inline-block h-4 w-4 align-middle" /> משחק חדש</>}
+              {creating ? "פותחים זירה…" : <><PlusIcon className="inline-block h-5 w-5 align-middle" /> משחק חדש</>}
             </button>
             <button type="button" onClick={() => router.push("/daily")} className="secondary-button">
-              אתגר יומי <AppIcon name="daily" className="inline-block h-4 w-4 align-middle" />
+              <AppIcon name="daily" className="inline-block h-5 w-5 align-middle" /> אתגר יומי
             </button>
           </div>
           {error && <p className="inline-error">{error}</p>}

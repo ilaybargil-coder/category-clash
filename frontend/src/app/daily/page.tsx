@@ -262,7 +262,7 @@ export default function DailyPage() {
               חזרה ללובי <ArrowLeftIcon className="inline-block h-4 w-4 align-middle" />
             </button>
             <p className="relative mt-7 text-xs font-black tracking-[0.16em] text-amber-300 sm:mt-0">
-              האתגר היומי <AppIcon name="daily" className="inline-block h-4 w-4 align-middle" />
+              <AppIcon name="daily" className="inline-block h-5 w-5 align-middle" /> האתגר היומי
             </p>
             <h1 className="relative mx-auto mt-4 max-w-2xl text-2xl font-black leading-snug text-white sm:text-3xl">
               {today.question_text}

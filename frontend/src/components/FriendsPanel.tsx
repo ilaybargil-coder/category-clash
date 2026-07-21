@@ -498,7 +498,7 @@ function RelationButton({
     none: "הוספה",
     outgoing_pending: "נשלחה בקשה",
     incoming_pending: "אישור בקשה",
-    friends: <>חברים <AppIcon name="correct" className="inline-block h-4 w-4 align-middle" /></>,
+    friends: <><AppIcon name="correct" className="inline-block h-5 w-5 align-middle" /> חברים</>,
   };
   const disabled = busy || user.relation === "outgoing_pending" || user.relation === "friends";
   return (

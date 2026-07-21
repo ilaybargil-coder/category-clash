@@ -510,8 +510,8 @@ function PowerButton({
       aria-pressed={!available}
       className="touch-manipulation rounded-lg border border-violet-400/20 bg-violet-500/10 px-2 py-2 text-xs font-bold text-violet-200 transition-transform duration-75 active:scale-95 disabled:cursor-not-allowed disabled:opacity-30"
     >
+      {!available && <AppIcon name="correct" className="inline-block h-5 w-5 align-middle" />}
       {label}
-      {!available && <AppIcon name="correct" className="inline-block h-4 w-4 align-middle" />}
     </button>
   );
 }
@@ -678,7 +678,7 @@ function WaitingOverlay({ code }: { code: string }) {
         onClick={copy}
         className="secondary-button mt-4 text-sm"
       >
-        {copied ? <>הקישור הועתק <AppIcon name="copy-link" className="inline-block h-4 w-4 align-middle" /></> : "העתקת קישור הזמנה"}
+        {copied ? <><AppIcon name="copy-link" className="inline-block h-5 w-5 align-middle" /> הקישור הועתק</> : "העתקת קישור הזמנה"}
       </button>
     </Overlay>
   );
@@ -762,7 +762,7 @@ function MatchResultOverlay({
           disabled={reconnecting}
           className="primary-button mt-5 px-8 py-3 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <AppIcon name="random" className="inline-block h-4 w-4 align-middle" /> רימאטצ&apos;
+          <AppIcon name="random" className="inline-block h-5 w-5 align-middle" /> רימאטצ&apos;
         </button>
       )}
       <BackHomeLink />
