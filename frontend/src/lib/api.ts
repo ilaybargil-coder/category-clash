@@ -201,6 +201,17 @@ export function createProfile(token: string, username: string, displayName: stri
   });
 }
 
+export function updateProfile(username: string, displayName: string) {
+  return request<SessionUser>("/api/profile", {
+    method: "POST",
+    body: JSON.stringify({ username, display_name: displayName }),
+  });
+}
+
+export function deleteAccount() {
+  return request<{ deleted: boolean }>("/api/account", { method: "DELETE" });
+}
+
 export function createRoom() {
   return request<{ code: string }>("/api/rooms", { method: "POST" });
 }

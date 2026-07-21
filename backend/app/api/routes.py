@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -128,6 +128,12 @@ async def create_profile(
         await session.execute(select(User).where(User.auth_user_id == identity.auth_user_id))
     ).scalar_one_or_none()
     if existing is not None:
+        display_name = body.display_name.strip()
+        if len(display_name) < 2:
+            raise HTTPException(status_code=422, detail="Display name is too short")
+        existing.display_name = display_name
+        await session.commit()
+        await session.refresh(existing)
         return user_out(existing)
 
     display_name = body.display_name.strip()
@@ -172,6 +178,109 @@ async def current_profile(
     if user is None:
         raise HTTPException(status_code=404, detail="Profile not found")
     return user_out(user)
+
+
+@router.delete("/account")
+async def delete_account(
+    current: TokenUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    user = await session.get(User, current.id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    params = {"user_id": current.id}
+    statements = (
+        "DELETE FROM answer_reports WHERE reporter_user_id = :user_id",
+        "DELETE FROM daily_results WHERE user_id = :user_id",
+        """
+        DELETE FROM friend_requests
+        WHERE sender_id = :user_id OR recipient_id = :user_id
+        """,
+        """
+        DELETE FROM friendships
+        WHERE user_a_id = :user_id OR user_b_id = :user_id
+        """,
+        """
+        DELETE FROM submitted_answers
+        WHERE user_id = :user_id
+           OR round_id IN (
+                SELECT rounds.id
+                FROM rounds
+                WHERE rounds.starter_user_id = :user_id
+                   OR rounds.winner_user_id = :user_id
+                   OR rounds.match_id IN (
+                        SELECT matches.id
+                        FROM matches
+                        WHERE matches.player1_id = :user_id
+                           OR matches.player2_id = :user_id
+                           OR matches.winner_id = :user_id
+                   )
+           )
+        """,
+        """
+        DELETE FROM rounds
+        WHERE starter_user_id = :user_id
+           OR winner_user_id = :user_id
+           OR match_id IN (
+                SELECT matches.id
+                FROM matches
+                WHERE matches.player1_id = :user_id
+                   OR matches.player2_id = :user_id
+                   OR matches.winner_id = :user_id
+           )
+        """,
+        """
+        DELETE FROM matches
+        WHERE player1_id = :user_id
+           OR player2_id = :user_id
+           OR winner_id = :user_id
+        """,
+    )
+    for statement in statements:
+        await session.execute(text(statement), params)
+
+    # Some deployments may have extra user-owned tables (for example,
+    # served_questions) that are not part of this checkout's ORM models. Remove
+    # rows from every remaining direct users.id FK before deleting the profile.
+    foreign_keys = (
+        await session.execute(
+            text(
+                """
+                SELECT DISTINCT tc.table_schema, tc.table_name, kcu.column_name
+                FROM information_schema.table_constraints AS tc
+                JOIN information_schema.key_column_usage AS kcu
+                  ON tc.constraint_catalog = kcu.constraint_catalog
+                 AND tc.constraint_schema = kcu.constraint_schema
+                 AND tc.constraint_name = kcu.constraint_name
+                JOIN information_schema.constraint_column_usage AS ccu
+                  ON tc.constraint_catalog = ccu.constraint_catalog
+                 AND tc.constraint_schema = ccu.constraint_schema
+                 AND tc.constraint_name = ccu.constraint_name
+                WHERE tc.constraint_type = 'FOREIGN KEY'
+                  AND ccu.table_schema = current_schema()
+                  AND ccu.table_name = 'users'
+                  AND ccu.column_name = 'id'
+                """
+            )
+        )
+    ).all()
+
+    def quoted(identifier: str) -> str:
+        return f'"{identifier.replace(chr(34), chr(34) * 2)}"'
+
+    for table_schema, table_name, column_name in foreign_keys:
+        await session.execute(
+            text(
+                f"DELETE FROM {quoted(table_schema)}.{quoted(table_name)} "
+                f"WHERE {quoted(column_name)} = :user_id"
+            ),
+            params,
+        )
+
+    await session.execute(text("DELETE FROM users WHERE id = :user_id"), params)
+    await session.commit()
+    return {"deleted": True}
 
 
 @router.post("/rooms")

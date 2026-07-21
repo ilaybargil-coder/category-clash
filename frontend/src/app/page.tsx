@@ -32,13 +32,16 @@ import { useViewportHeight } from "@/hooks/useViewportHeight";
 import {
   clearSession,
   createRoom,
+  deleteAccount,
   fetchDemoUsers,
   fetchXpLeaderboard,
   getUser,
   refreshSessionUser,
   saveSession,
+  updateProfile,
 } from "@/lib/api";
 import {
+  getSupabaseClient,
   SUPABASE_AUTH_CONFIGURED,
   SUPABASE_AUTH_ENABLED,
 } from "@/lib/supabase";
@@ -374,15 +377,212 @@ function StatsView({ user, stats }: { user: SessionUser; stats: UserStats }) {
 }
 
 function SettingsView({ user, onSignOut }: { user: SessionUser; onSignOut: () => void | Promise<void> }) {
+  const [profile, setProfile] = useState(user);
+  const [displayName, setDisplayName] = useState(user.display_name);
+  const [password, setPassword] = useState("");
+  const [passwordConfirmation, setPasswordConfirmation] = useState("");
+  const [email, setEmail] = useState("");
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [busyAction, setBusyAction] = useState<
+    "profile" | "password" | "email" | "delete" | null
+  >(null);
+  const [feedback, setFeedback] = useState<{
+    action: "profile" | "password" | "email" | "delete";
+    kind: "success" | "error";
+    text: string;
+  } | null>(null);
+  const supabaseAccountActionsAvailable =
+    SUPABASE_AUTH_ENABLED && SUPABASE_AUTH_CONFIGURED;
+
+  async function changeDisplayName(event: React.FormEvent) {
+    event.preventDefault();
+    const cleanDisplayName = displayName.trim();
+    setFeedback(null);
+    if (cleanDisplayName.length < 2) {
+      setFeedback({ action: "profile", kind: "error", text: "הכינוי חייב להכיל לפחות שני תווים" });
+      return;
+    }
+
+    setBusyAction("profile");
+    try {
+      await updateProfile(user.username, cleanDisplayName);
+      const refreshed = await refreshSessionUser();
+      if (refreshed) {
+        setProfile(refreshed);
+        setDisplayName(refreshed.display_name);
+      }
+      if (supabaseAccountActionsAvailable) {
+        await getSupabaseClient().auth.refreshSession();
+      }
+      setFeedback({ action: "profile", kind: "success", text: "הכינוי עודכן בהצלחה" });
+    } catch {
+      setFeedback({
+        action: "profile",
+        kind: "error",
+        text: "עדכון הכינוי נכשל. נסו שוב.",
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function changePassword(event: React.FormEvent) {
+    event.preventDefault();
+    setFeedback(null);
+    if (password.length < 8) {
+      setFeedback({ action: "password", kind: "error", text: "הסיסמה חייבת להכיל לפחות 8 תווים" });
+      return;
+    }
+    if (password !== passwordConfirmation) {
+      setFeedback({ action: "password", kind: "error", text: "הסיסמאות אינן זהות" });
+      return;
+    }
+
+    setBusyAction("password");
+    try {
+      const { error } = await getSupabaseClient().auth.updateUser({ password });
+      if (error) throw error;
+      setPassword("");
+      setPasswordConfirmation("");
+      setFeedback({ action: "password", kind: "success", text: "הסיסמה עודכנה בהצלחה" });
+    } catch {
+      setFeedback({
+        action: "password",
+        kind: "error",
+        text: "עדכון הסיסמה נכשל. נסו שוב.",
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function changeEmail(event: React.FormEvent) {
+    event.preventDefault();
+    const cleanEmail = email.trim();
+    setFeedback(null);
+    if (!cleanEmail) {
+      setFeedback({ action: "email", kind: "error", text: "יש להזין כתובת אימייל" });
+      return;
+    }
+
+    setBusyAction("email");
+    try {
+      const { error } = await getSupabaseClient().auth.updateUser({ email: cleanEmail });
+      if (error) throw error;
+      setEmail("");
+      setFeedback({
+        action: "email",
+        kind: "success",
+        text: "שלחנו הודעת אישור לכתובת החדשה. השינוי יושלם לאחר אישור האימייל.",
+      });
+    } catch {
+      setFeedback({
+        action: "email",
+        kind: "error",
+        text: "עדכון כתובת האימייל נכשל. נסו שוב.",
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function removeAccount() {
+    if (deleteConfirmation.trim() !== user.username) return;
+    setFeedback(null);
+    setBusyAction("delete");
+    try {
+      await deleteAccount();
+      if (supabaseAccountActionsAvailable) {
+        await getSupabaseClient().auth.signOut();
+      }
+      await onSignOut();
+    } catch {
+      setFeedback({
+        action: "delete",
+        kind: "error",
+        text: "מחיקת החשבון נכשלה. נסו שוב.",
+      });
+      setBusyAction(null);
+    }
+  }
+
+  function actionFeedback(action: "profile" | "password" | "email" | "delete") {
+    if (!feedback || feedback.action !== action) return null;
+    return (
+      <p className={`mt-3 text-sm ${feedback.kind === "success" ? "text-emerald-300" : "text-rose-300"}`}>
+        {feedback.text}
+      </p>
+    );
+  }
+
   return (
     <div className="dashboard-view">
       <ViewHeading eyebrow="החשבון שלך" title="הגדרות" description="פרטי החשבון ופעולות זמינות." />
       <section className="settings-panel surface-panel">
         <div className="settings-profile">
-          <UserAvatar name={user.display_name} online size="lg" />
-          <div><h2>{user.display_name}</h2><p dir="ltr">@{user.username}</p></div>
-          <CoinPill coins={user.coins} />
+          <UserAvatar name={profile.display_name} online size="lg" />
+          <div><h2>{profile.display_name}</h2><p dir="ltr">@{profile.username}</p></div>
+          <CoinPill coins={profile.coins} />
         </div>
+
+        <div className="section-heading pt-5">
+          <div><span>פרטים ואבטחה</span><h2>ניהול החשבון</h2></div>
+        </div>
+
+        <div className="grid gap-4 py-4 lg:grid-cols-2">
+          <form onSubmit={changeDisplayName} className="rounded-xl border border-white/10 bg-white/[0.025] p-4">
+            <h3 className="font-black text-white">שינוי כינוי</h3>
+            <p className="mt-1 text-sm text-slate-400">זהו השם שיוצג לשחקנים אחרים.</p>
+            <label className="mt-4 block text-sm font-bold text-slate-300" htmlFor="settings-display-name">כינוי חדש</label>
+            <input id="settings-display-name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} minLength={2} maxLength={64} className="dark-input mt-2 w-full" disabled={busyAction !== null} />
+            <button type="submit" className="primary-button mt-3 w-full px-4 py-3" disabled={busyAction !== null || displayName.trim() === profile.display_name}>
+              {busyAction === "profile" ? "מעדכנים…" : "עדכון הכינוי"}
+            </button>
+            {actionFeedback("profile")}
+          </form>
+
+          {supabaseAccountActionsAvailable && (
+            <form onSubmit={changePassword} className="rounded-xl border border-white/10 bg-white/[0.025] p-4">
+              <h3 className="font-black text-white">שינוי סיסמה</h3>
+              <p className="mt-1 text-sm text-slate-400">הסיסמה החדשה חייבת להכיל לפחות 8 תווים.</p>
+              <label className="mt-4 block text-sm font-bold text-slate-300" htmlFor="settings-password">סיסמה חדשה</label>
+              <input id="settings-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} minLength={8} autoComplete="new-password" className="dark-input mt-2 w-full" disabled={busyAction !== null} />
+              <label className="mt-3 block text-sm font-bold text-slate-300" htmlFor="settings-password-confirmation">אימות סיסמה</label>
+              <input id="settings-password-confirmation" type="password" value={passwordConfirmation} onChange={(event) => setPasswordConfirmation(event.target.value)} minLength={8} autoComplete="new-password" className="dark-input mt-2 w-full" disabled={busyAction !== null} />
+              <button type="submit" className="primary-button mt-3 w-full px-4 py-3" disabled={busyAction !== null}>
+                {busyAction === "password" ? "מעדכנים…" : "עדכון הסיסמה"}
+              </button>
+              {actionFeedback("password")}
+            </form>
+          )}
+
+          {supabaseAccountActionsAvailable && (
+            <form onSubmit={changeEmail} className="rounded-xl border border-white/10 bg-white/[0.025] p-4">
+              <h3 className="font-black text-white">שינוי כתובת אימייל</h3>
+              <p className="mt-1 text-sm text-slate-400">לאישור השינוי יישלח אימייל לכתובת החדשה.</p>
+              <label className="mt-4 block text-sm font-bold text-slate-300" htmlFor="settings-email">כתובת אימייל חדשה</label>
+              <input id="settings-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" dir="ltr" className="dark-input mt-2 w-full text-left" disabled={busyAction !== null} />
+              <button type="submit" className="primary-button mt-3 w-full px-4 py-3" disabled={busyAction !== null}>
+                {busyAction === "email" ? "שולחים…" : "עדכון כתובת האימייל"}
+              </button>
+              {actionFeedback("email")}
+            </form>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-rose-400/25 bg-rose-500/[0.06] p-4">
+          <h3 className="font-black text-rose-200">מחיקת החשבון</h3>
+          <p className="mt-1 text-sm leading-6 text-slate-400">הפעולה תמחק לצמיתות את החשבון, החברים, התוצאות וכל היסטוריית המשחקים שלך. לא ניתן לבטל אותה.</p>
+          <label className="mt-4 block text-sm font-bold text-slate-300" htmlFor="settings-delete-confirmation">
+            לאישור, יש להקליד את שם המשתמש <span dir="ltr" className="text-rose-200">{user.username}</span>
+          </label>
+          <input id="settings-delete-confirmation" value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} autoComplete="off" dir="ltr" className="dark-input mt-2 w-full text-left" disabled={busyAction !== null} />
+          <button type="button" onClick={() => void removeAccount()} className="mt-3 w-full rounded-xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm font-black text-rose-200 transition hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-50" disabled={busyAction !== null || deleteConfirmation.trim() !== user.username}>
+            {busyAction === "delete" ? "מוחקים את החשבון…" : "מחיקת החשבון לצמיתות"}
+          </button>
+          {actionFeedback("delete")}
+        </div>
+
         <button type="button" onClick={() => void onSignOut()} className="sign-out-button">התנתקות מהחשבון</button>
       </section>
     </div>
