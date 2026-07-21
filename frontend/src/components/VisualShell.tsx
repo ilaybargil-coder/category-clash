@@ -5,7 +5,6 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { ArrowLeftIcon, CoinIcon, LightningIcon } from "@/components/icons";
 import type { SessionUser } from "@/lib/types";
-import { generateAvatar } from "../lib/avatar";
 
 export type DashboardView =
   | "home"
@@ -104,77 +103,10 @@ export function UserAvatar({
   online?: boolean;
   size?: "sm" | "md" | "lg";
 }) {
-  const seed = name?.trim() || "anon";
-  const avatar = generateAvatar(seed);
-  const gradientId = `avatar-gradient-${avatar.bgColor1.slice(1)}-${avatar.bgColor2.slice(1)}`;
-  const clipId = `avatar-clip-${avatar.bgColor1.slice(1)}-${avatar.accentColor.slice(1)}-${avatar.shapeType}`;
-  const shapeTransform = `translate(${avatar.shapeX} ${avatar.shapeY}) scale(${avatar.shapeScale})`;
-
-  const accentShape = {
-    circle: <circle cx="0" cy="0" r="22" />,
-    triangle: <polygon points="0,-24 23,20 -23,20" />,
-    diamond: <polygon points="0,-24 23,0 0,24 -23,0" />,
-    blob: (
-      <path d="M0-23C12-23 22-14 22-2C25 10 14 22 2 22C-11 25-23 14-22 1C-24-11-13-22 0-23Z" />
-    ),
-  }[avatar.shapeType];
-
+  const initials = name.trim().slice(0, 2) || "?";
   return (
     <span className={`user-avatar user-avatar--${size}`} aria-label={name}>
-      <svg
-        viewBox="0 0 64 64"
-        width="100%"
-        height="100%"
-        aria-label={name || "Player avatar"}
-        role="img"
-      >
-        <defs>
-          <linearGradient id={gradientId} x1="10" y1="6" x2="56" y2="60" gradientUnits="userSpaceOnUse">
-            <stop stopColor={avatar.bgColor1} />
-            <stop offset="1" stopColor={avatar.bgColor2} />
-          </linearGradient>
-          <clipPath id={clipId}>
-            <circle cx="32" cy="32" r="32" />
-          </clipPath>
-        </defs>
-        <g clipPath={`url(#${clipId})`}>
-          <circle cx="32" cy="32" r="32" fill={`url(#${gradientId})`} />
-          <circle cx="19" cy="14" r="12" fill="#FFFFFF" opacity="0.1" />
-          <circle cx="55" cy="50" r="16" fill={avatar.accentColor} opacity="0.2" />
-          <g
-            transform={shapeTransform}
-            fill={avatar.faceColor}
-            stroke={avatar.accentColor}
-            strokeWidth="2.5"
-            strokeLinejoin="round"
-          >
-            {accentShape}
-          </g>
-          <g transform={shapeTransform}>
-            <text
-              x="0"
-              y="9"
-              textAnchor="middle"
-              fill={avatar.accentColor}
-              opacity="0.14"
-              fontSize="28"
-              fontWeight="900"
-              stroke="none"
-            >
-              {seed.slice(0, 1).toUpperCase()}
-            </text>
-            <circle cx="-7" cy="-3" r="2.6" fill={avatar.eyeColor} />
-            <circle cx="7" cy="-3" r="2.6" fill={avatar.eyeColor} />
-            <path
-              d="M-7 7 Q0 14 7 7"
-              fill="none"
-              stroke={avatar.eyeColor}
-              strokeWidth="2.5"
-              strokeLinecap="round"
-            />
-          </g>
-        </g>
-      </svg>
+      {initials}
       {online && <span className="online-dot" />}
     </span>
   );
