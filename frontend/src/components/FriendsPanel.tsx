@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CheckIcon } from "@/components/icons";
+import AppIcon from "@/components/AppIcon";
 import { useRouter } from "next/navigation";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import {
@@ -498,7 +498,7 @@ function RelationButton({
     none: "הוספה",
     outgoing_pending: "נשלחה בקשה",
     incoming_pending: "אישור בקשה",
-    friends: <>חברים <CheckIcon className="inline-block h-4 w-4 align-middle" /></>,
+    friends: <>חברים <AppIcon name="correct" className="inline-block h-4 w-4 align-middle" /></>,
   };
   const disabled = busy || user.relation === "outgoing_pending" || user.relation === "friends";
   return (

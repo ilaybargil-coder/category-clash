@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeftIcon, CheckIcon, LightningIcon, ShareIcon, TrophyIcon } from "@/components/icons";
+import AppIcon from "@/components/AppIcon";
+import { ArrowLeftIcon, ShareIcon } from "@/components/icons";
 import { UserAvatar } from "@/components/VisualShell";
 import { useViewportHeight } from "@/hooks/useViewportHeight";
 import {
@@ -261,7 +262,7 @@ export default function DailyPage() {
               חזרה ללובי <ArrowLeftIcon className="inline-block h-4 w-4 align-middle" />
             </button>
             <p className="relative mt-7 text-xs font-black tracking-[0.16em] text-amber-300 sm:mt-0">
-              האתגר היומי <LightningIcon className="inline-block h-4 w-4 align-middle" />
+              האתגר היומי <AppIcon name="daily" className="inline-block h-4 w-4 align-middle" />
             </p>
             <h1 className="relative mx-auto mt-4 max-w-2xl text-2xl font-black leading-snug text-white sm:text-3xl">
               {today.question_text}
@@ -378,7 +379,7 @@ export default function DailyPage() {
               <p className="text-xs font-bold text-violet-300">היום</p>
               <h2 className="mt-1 text-xl font-black text-white">טבלת המובילים</h2>
             </div>
-            <span className="text-2xl"><TrophyIcon className="h-6 w-6" /></span>
+            <span className="text-2xl"><AppIcon name="leaderboard" className="h-6 w-6" /></span>
           </div>
           {leaderboard.length === 0 ? (
             <p className="mt-6 rounded-xl border border-white/10 p-4 text-center text-sm text-slate-500">
@@ -431,7 +432,7 @@ function FeedbackChip({
   if (item.status === "VALID") {
     return (
       <span className="rounded-full bg-emerald-500/15 px-3 py-1.5 text-sm font-bold text-emerald-300">
-        <CheckIcon className="inline-block h-4 w-4 align-middle" /> {item.canonical}
+        <AppIcon name="correct" className="inline-block h-4 w-4 align-middle" /> {item.canonical}
       </span>
     );
   }
@@ -452,7 +453,7 @@ function FeedbackChip({
         onPointerDown={(event) => event.preventDefault()}
         className="text-xs font-bold text-rose-300/70 underline"
       >
-        {reported ? <><CheckIcon className="inline-block h-3.5 w-3.5 align-middle" /> דווח</> : "דווח"}
+        <AppIcon name="report" className="inline-block h-3.5 w-3.5 align-middle" /> דווח
       </button>
     </span>
   );

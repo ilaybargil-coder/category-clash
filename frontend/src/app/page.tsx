@@ -9,14 +9,10 @@ import DashboardFriendsCarousel from "@/components/DashboardFriendsCarousel";
 import FriendsPanel from "@/components/FriendsPanel";
 import InviteToast from "@/components/InviteToast";
 import MatchHistory from "@/components/MatchHistory";
+import AppIcon from "@/components/AppIcon";
 import {
-  AccuracyIcon,
-  GamepadIcon,
-  LightningIcon,
-  LosesIcon,
   PlusIcon,
   TargetIcon,
-  TrophyIcon,
   WaveIcon,
 } from "@/components/icons";
 import {
@@ -144,7 +140,7 @@ function HomeView({
               {creating ? "פותחים זירה…" : <><PlusIcon className="inline-block h-4 w-4 align-middle" /> משחק חדש</>}
             </button>
             <button type="button" onClick={() => router.push("/daily")} className="secondary-button">
-              אתגר יומי <LightningIcon className="inline-block h-4 w-4 align-middle" />
+              אתגר יומי <AppIcon name="daily" className="inline-block h-4 w-4 align-middle" />
             </button>
           </div>
           {error && <p className="inline-error">{error}</p>}
@@ -173,7 +169,7 @@ function LevelProgress({ user }: { user: SessionUser }) {
           <h2 className="mt-1 text-lg font-black text-white">הדרך לרמה הבאה</h2>
         </div>
         <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300/20 bg-amber-400/10 px-3 py-1.5 text-sm font-black text-amber-200">
-          <TrophyIcon className="h-4 w-4" /> {user.rank}
+          <AppIcon name="medal" className="h-4 w-4" /> {user.rank}
         </span>
       </div>
       <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-white/10">
@@ -218,7 +214,7 @@ function XpLeaderboardPanel({
           <span className="text-xs font-bold text-violet-300">גלובלי</span>
           <h2>טבלת מובילים</h2>
         </div>
-        <TrophyIcon className="h-5 w-5 text-amber-300" />
+        <AppIcon name="leaderboard" className="h-5 w-5" />
       </div>
       {!leaderboard ? (
         <p className="mt-4 text-center text-sm text-slate-500">טוענים דירוג…</p>
@@ -268,10 +264,10 @@ function XpLeaderboardRow({
 
 function StatsStrip({ user, stats }: { user: SessionUser; stats: UserStats }) {
   const statItems = [
-    { label: "משחקים", value: stats.games, icon: <GamepadIcon className="h-5 w-5" /> },
-    { label: "נצחונות", value: user.wins, icon: <TrophyIcon className="h-5 w-5" /> },
-    { label: "הפסדים", value: user.losses, icon: <LosesIcon className="h-5 w-5" /> },
-    { label: "דיוק", value: `${stats.accuracy}%`, icon: <AccuracyIcon className="h-5 w-5" /> },
+    { label: "משחקים", value: stats.games, icon: <AppIcon name="games" className="h-5 w-5" /> },
+    { label: "נצחונות", value: user.wins, icon: <AppIcon name="wins" className="h-5 w-5" /> },
+    { label: "הפסדים", value: user.losses, icon: <AppIcon name="losses" className="h-5 w-5" /> },
+    { label: "דיוק", value: `${stats.accuracy}%`, icon: <AppIcon name="accuracy" className="h-5 w-5" /> },
   ];
 
   return (
@@ -315,8 +311,8 @@ function GameActions({ user }: { user: SessionUser }) {
     <div className="dashboard-view">
       <ViewHeading eyebrow={`הזירה של ${user.display_name}`} title="בוחרים מצב משחק" description="קרב מול חברים, אתגר יומי או אימון בקצב שלכם." />
       <section className="game-mode-grid">
-        <GameModeCard icon={<GamepadIcon className="h-6 w-6" />} label="מול חבר" title="משחק חדש" description="פתחו חדר פרטי והזמינו חבר לקרב בזמן אמת." action={creating ? "פותחים…" : "פתיחת חדר"} onClick={() => void createGame()} primary disabled={creating} />
-        <GameModeCard icon={<LightningIcon className="h-6 w-6" />} label="פעם ביום" title="האתגר היומי" description="אותה קטגוריה לכולם. כמה גבוה תגיעו היום?" action="לאתגר היומי" onClick={() => router.push("/daily")} />
+        <GameModeCard icon={<AppIcon name="new-game" className="h-6 w-6" />} label="מול חבר" title="משחק חדש" description="פתחו חדר פרטי והזמינו חבר לקרב בזמן אמת." action={creating ? "פותחים…" : "פתיחת חדר"} onClick={() => void createGame()} primary disabled={creating} />
+        <GameModeCard icon={<AppIcon name="daily" className="h-6 w-6" />} label="פעם ביום" title="האתגר היומי" description="אותה קטגוריה לכולם. כמה גבוה תגיעו היום?" action="לאתגר היומי" onClick={() => router.push("/daily")} />
         <GameModeCard icon={<TargetIcon className="h-6 w-6" />} label="אימון חופשי" title="משחק יחיד" description="חדדו מהירות וגלו תשובות חדשות בלי לחץ." action="מתחילים להתאמן" onClick={() => router.push("/solo")} />
       </section>
       <section className="join-room-panel surface-panel">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { TrophyIcon } from "@/components/icons";
+import AppIcon from "@/components/AppIcon";
 import { fetchMatchHistory, type MatchHistoryItem } from "@/lib/api";
 
 const relativeTime = new Intl.RelativeTimeFormat("he", { numeric: "auto" });
@@ -50,7 +50,7 @@ export default function MatchHistory() {
           <span className="text-xs font-bold text-violet-300">הקרבות האחרונים</span>
           <h2 className="mt-1 text-xl font-black text-white">היסטוריית משחקים</h2>
         </div>
-        <TrophyIcon className="h-5 w-5 text-amber-300" />
+        <AppIcon name="list" className="h-5 w-5" />
       </div>
 
       {matches === null && !failed && (

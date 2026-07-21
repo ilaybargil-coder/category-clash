@@ -524,7 +524,7 @@
 
   .surface-panel {
     border-color: var(--line);
-    background: var(--panel-sheen), linear-gradient(180deg, rgba(255,255,255,.035), transparent 30%), var(--panel-gradient);
+    background: var(--panel-sheen), linear-gradient(180deg, rgba(255,255,255,.035), transparent 30%), linear-gradient(150deg, rgba(45,55,72,.86), rgba(30,39,53,.86));
     box-shadow: var(--shadow-card);
   }
 

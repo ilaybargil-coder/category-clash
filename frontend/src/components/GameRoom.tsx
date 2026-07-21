@@ -2,16 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import AppIcon from "@/components/AppIcon";
 import {
-  CheckIcon,
-  JokerIcon,
-  LosesIcon,
   ShareIcon,
   SoundOffIcon,
   SoundOnIcon,
   SwapIcon,
-  TimerIcon,
-  TrophyIcon,
 } from "@/components/icons";
 import { useGameSocket } from "@/hooks/useGameSocket";
 import { useViewportHeight } from "@/hooks/useViewportHeight";
@@ -414,8 +410,8 @@ function GameView({
 
             <div className="grid shrink-0 grid-cols-3 gap-2 border-t border-white/10 px-3 py-2 sm:px-5">
               <PowerButton label={<><SwapIcon className="inline-block h-4 w-4 align-middle" /> החלפה</>} available={myPowerups.swap_question && !optimisticallyUsed?.has("swap_question")} disabled={state.answers.length > 0 || !["QUESTION_PREVIEW", "ROUND_ACTIVE"].includes(state.phase)} onClick={() => onPowerup("swap_question")} />
-              <PowerButton label={<><TimerIcon className="inline-block h-4 w-4 align-middle" /> הארכה</>} available={myPowerups.extend_time && !optimisticallyUsed?.has("extend_time")} disabled={!myTurn} onClick={() => onPowerup("extend_time")} />
-              <PowerButton label={<><JokerIcon className="inline-block h-4 w-4 align-middle" /> ג׳וקר</>} available={myPowerups.joker && !optimisticallyUsed?.has("use_joker")} disabled={!myTurn} onClick={() => onPowerup("use_joker")} />
+              <PowerButton label={<><AppIcon name="timer" className="inline-block h-4 w-4 align-middle" /> הארכה</>} available={myPowerups.extend_time && !optimisticallyUsed?.has("extend_time")} disabled={!myTurn} onClick={() => onPowerup("extend_time")} />
+              <PowerButton label={<><AppIcon name="star" className="inline-block h-4 w-4 align-middle" /> ג׳וקר</>} available={myPowerups.joker && !optimisticallyUsed?.has("use_joker")} disabled={!myTurn} onClick={() => onPowerup("use_joker")} />
             </div>
 
             <form
@@ -515,7 +511,7 @@ function PowerButton({
       className="touch-manipulation rounded-lg border border-violet-400/20 bg-violet-500/10 px-2 py-2 text-xs font-bold text-violet-200 transition-transform duration-75 active:scale-95 disabled:cursor-not-allowed disabled:opacity-30"
     >
       {label}
-      {!available && <CheckIcon className="inline-block h-3.5 w-3.5 align-middle" />}
+      {!available && <AppIcon name="correct" className="inline-block h-3.5 w-3.5 align-middle" />}
     </button>
   );
 }
@@ -682,7 +678,7 @@ function WaitingOverlay({ code }: { code: string }) {
         onClick={copy}
         className="secondary-button mt-4 text-sm"
       >
-        {copied ? <>הקישור הועתק <CheckIcon className="inline-block h-4 w-4 align-middle" /></> : "העתקת קישור הזמנה"}
+        {copied ? <>הקישור הועתק <AppIcon name="copy-link" className="inline-block h-4 w-4 align-middle" /></> : "העתקת קישור הזמנה"}
       </button>
     </Overlay>
   );
@@ -697,7 +693,7 @@ function RoundResultOverlay({ state }: { state: GameState }) {
   return (
     <Overlay>
       <div className="text-5xl">
-        {iWon ? <TrophyIcon className="mx-auto h-12 w-12" /> : <TimerIcon className="mx-auto h-12 w-12" />}
+        {iWon ? <AppIcon name="wins" className="mx-auto h-12 w-12" /> : <AppIcon name="timer" className="mx-auto h-12 w-12" />}
       </div>
       <h2 className="mt-3 text-2xl font-black">
         {iWon ? "לקחת את הסיבוב!" : `${winner?.display_name} לקח/ה את הסיבוב`}
@@ -734,7 +730,7 @@ function MatchResultOverlay({
   return (
     <Overlay>
       <div className="text-6xl">
-        {iWon ? <TrophyIcon className="mx-auto h-14 w-14" /> : <LosesIcon className="mx-auto h-14 w-14" />}
+        {iWon ? <AppIcon name="wins" className="mx-auto h-14 w-14" /> : <AppIcon name="losses" className="mx-auto h-14 w-14" />}
       </div>
       <h2 className="mt-3 text-3xl font-black">
         {iWon ? "ניצחון!" : "הפסד הפעם"}
@@ -766,7 +762,7 @@ function MatchResultOverlay({
           disabled={reconnecting}
           className="primary-button mt-5 px-8 py-3 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <SwapIcon className="inline-block h-4 w-4 align-middle" /> רימאטצ&apos;
+          <AppIcon name="random" className="inline-block h-4 w-4 align-middle" /> רימאטצ&apos;
         </button>
       )}
       <BackHomeLink />
