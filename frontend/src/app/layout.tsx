@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import BackendWarmup from "@/components/BackendWarmup";
+import OnboardingTutorial from "@/components/OnboardingTutorial";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -23,6 +24,7 @@ export default function RootLayout({
       <body className="min-h-dvh bg-[#050a10] font-sans text-slate-100 antialiased">
         <BackendWarmup />
         {children}
+        <OnboardingTutorial />
       </body>
     </html>
   );
