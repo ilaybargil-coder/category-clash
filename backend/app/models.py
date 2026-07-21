@@ -113,7 +113,7 @@ class AnswerReport(Base):
     __tablename__ = "answer_reports"
     __table_args__ = (
         CheckConstraint(
-            "status IN ('pending', 'accepted', 'rejected')",
+            "status IN ('pending', 'approved', 'rejected')",
             name="ck_answer_reports_status",
         ),
         UniqueConstraint(

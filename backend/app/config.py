@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     supabase_publishable_key: str = ""
     supabase_auth_timeout_seconds: float = 5.0
     auth_identity_cache_seconds: int = 300
+    admin_usernames: str = "ilaybargil"
 
     # Gameplay
     turn_seconds: float = 15.0
