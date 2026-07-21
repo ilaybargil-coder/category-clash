@@ -3,31 +3,104 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Collection
+from datetime import timedelta
 
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlalchemy.orm import selectinload
 
 from ..leveling import LOSS_XP, WIN_XP, win_streak_bonus
-from ..models import ApprovedAnswer, Match, Question, Round, SubmittedAnswer, User
+from ..models import (
+    ApprovedAnswer,
+    Match,
+    Question,
+    Round,
+    ServedQuestion,
+    SubmittedAnswer,
+    User,
+)
 from .engine import ResultSink
 from .validator import QuestionData, build_question_index
 
 logger = logging.getLogger(__name__)
 
+RECENT_QUESTION_WINDOW = timedelta(minutes=60)
+RECENT_QUESTION_LIMIT = 20
+
 
 def make_question_provider(session_factory: async_sessionmaker):
-    async def provider(exclude_ids: set[int]) -> QuestionData | None:
+    async def provider(
+        exclude_ids: set[int], player_ids: Collection[int] = ()
+    ) -> QuestionData | None:
         async with session_factory() as session:
-            stmt = (
-                select(Question)
-                .where(Question.is_active.is_(True))
-                .order_by(func.random())
-                .limit(1)
-            )
-            if exclude_ids:
-                stmt = stmt.where(Question.id.not_in(exclude_ids))
-            question = (await session.execute(stmt)).scalar_one_or_none()
+            unique_player_ids = sorted(set(player_ids))
+            recent_ids: set[int] = set()
+            if unique_player_ids:
+                try:
+                    latest_distinct = (
+                        select(
+                            ServedQuestion.user_id.label("user_id"),
+                            ServedQuestion.question_id.label("question_id"),
+                            func.max(ServedQuestion.served_at).label("last_served_at"),
+                        )
+                        .where(
+                            ServedQuestion.user_id.in_(unique_player_ids),
+                            ServedQuestion.served_at >= func.now() - RECENT_QUESTION_WINDOW,
+                        )
+                        .group_by(ServedQuestion.user_id, ServedQuestion.question_id)
+                        .subquery()
+                    )
+                    ranked = select(
+                        latest_distinct.c.question_id,
+                        func.row_number()
+                        .over(
+                            partition_by=latest_distinct.c.user_id,
+                            order_by=latest_distinct.c.last_served_at.desc(),
+                        )
+                        .label("recency_rank"),
+                    ).subquery()
+                    recent_ids = set(
+                        (
+                            await session.execute(
+                                select(ranked.c.question_id).where(
+                                    ranked.c.recency_rank <= RECENT_QUESTION_LIMIT
+                                )
+                            )
+                        )
+                        .scalars()
+                        .all()
+                    )
+                except Exception:
+                    logger.exception("failed to load recent served-question history")
+                    await session.rollback()
+
+            # 1v1 selection first honors both players' recent history and this
+            # game's used IDs. If that pool is empty, drop recent history, then
+            # drop the per-game exclusions as a final small-bank safeguard.
+            exclusion_stages = [set(exclude_ids)]
+            if unique_player_ids:
+                exclusion_stages = [set(exclude_ids) | recent_ids, set(exclude_ids), set()]
+
+            question = None
+            tried_exclusions: set[frozenset[int]] = set()
+            for exclusions in exclusion_stages:
+                frozen_exclusions = frozenset(exclusions)
+                if frozen_exclusions in tried_exclusions:
+                    continue
+                tried_exclusions.add(frozen_exclusions)
+                stmt = (
+                    select(Question)
+                    .where(Question.is_active.is_(True))
+                    .order_by(func.random())
+                    .limit(1)
+                )
+                if exclusions:
+                    stmt = stmt.where(Question.id.not_in(exclusions))
+                question = (await session.execute(stmt)).scalar_one_or_none()
+                if question is not None:
+                    break
+
             if question is None:
                 return None
 
@@ -51,7 +124,22 @@ def make_question_provider(session_factory: async_sessionmaker):
                     for a in answers
                 ]
             )
-            return QuestionData(id=question.id, text=question.text, index=index)
+            question_data = QuestionData(id=question.id, text=question.text, index=index)
+
+            if unique_player_ids:
+                try:
+                    session.add_all(
+                        ServedQuestion(user_id=user_id, question_id=question.id)
+                        for user_id in unique_player_ids
+                    )
+                    await session.commit()
+                except Exception:
+                    # History must never prevent the selected question from
+                    # being served. A later round can continue without it.
+                    logger.exception("failed to record served question %s", question.id)
+                    await session.rollback()
+
+            return question_data
 
     return provider
 

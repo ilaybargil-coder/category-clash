@@ -28,7 +28,7 @@ from .validator import AnswerStatus, QuestionData, RoundValidator
 logger = logging.getLogger(__name__)
 
 Broadcaster = Callable[[dict], Awaitable[None]]
-QuestionProvider = Callable[[set[int]], Awaitable[Optional[QuestionData]]]
+QuestionProvider = Callable[[set[int], tuple[int, ...]], Awaitable[Optional[QuestionData]]]
 
 
 class RoomPhase(str, Enum):
@@ -368,7 +368,7 @@ class GameRoom:
         await self._start_round_locked()
 
     async def _start_round_locked(self) -> None:
-        question = await self._provider(set(self.used_question_ids))
+        question = await self._provider(set(self.used_question_ids), tuple(self.order))
         if question is None:
             logger.error("room %s: no questions available, abandoning", self.code)
             self.phase = RoomPhase.ABANDONED
@@ -661,7 +661,7 @@ class GameRoom:
                 return status
 
             if name == "swap_question":
-                question = await self._provider(set(self.used_question_ids))
+                question = await self._provider(set(self.used_question_ids), tuple(self.order))
                 if question is None:
                     status = PowerUpStatus.NOT_AVAILABLE
                     self._processed_powerups[(user_id, client_command_id)] = status

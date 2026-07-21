@@ -37,7 +37,7 @@ class EventCollector:
 def make_room(turn_seconds=0.15, preview=0.01, intermission=0.01, powerup_grace_ms=600):
     events = EventCollector()
 
-    async def provider(exclude_ids):
+    async def provider(exclude_ids, _player_ids):
         next_id = max(exclude_ids, default=0) + 1
         return make_question(next_id)
 

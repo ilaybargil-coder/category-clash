@@ -3,13 +3,21 @@ import os
 import uuid
 
 import pytest
-from sqlalchemy import delete, func, select, text
+from sqlalchemy import delete, func, select, text, update
 
 from app.db import SessionLocal, engine
-from app.game.db_io import DbResultSink
+from app.game.db_io import DbResultSink, make_question_provider
 from app.game.engine import GameConfig, GameRoom, RoomPhase
 from app.game.validator import QuestionData, build_question_index
-from app.models import AnswerAlias, ApprovedAnswer, Match, Question, SubmittedAnswer, User
+from app.models import (
+    AnswerAlias,
+    ApprovedAnswer,
+    Match,
+    Question,
+    ServedQuestion,
+    SubmittedAnswer,
+    User,
+)
 from app.seed import seed
 
 
@@ -34,7 +42,7 @@ async def test_retried_command_persists_one_submitted_answer() -> None:
         question_id = await session.scalar(select(Question.id).limit(1))
     assert len(user_ids) == 2 and question_id is not None
 
-    async def provider(_exclude_ids: set[int]) -> QuestionData:
+    async def provider(_exclude_ids: set[int], _player_ids: tuple[int, ...]) -> QuestionData:
         return QuestionData(
             id=question_id,
             text="integration question",
@@ -92,6 +100,88 @@ async def test_retried_command_persists_one_submitted_answer() -> None:
             task.cancel()
         async with SessionLocal() as session:
             await session.execute(delete(Match).where(Match.code == code))
+            await session.commit()
+
+
+@pytest.mark.integration
+@pytest.mark.skipif(
+    os.getenv("RUN_DB_INTEGRATION") != "1",
+    reason="set RUN_DB_INTEGRATION=1 with local PostgreSQL running",
+)
+async def test_1v1_question_provider_excludes_recent_union_and_falls_back() -> None:
+    token = uuid.uuid4().hex
+    user_ids: list[int] = []
+    question_ids: list[int] = []
+    original_active_ids: list[int] = []
+
+    try:
+        async with SessionLocal() as session:
+            original_active_ids = list(
+                (await session.execute(select(Question.id).where(Question.is_active.is_(True))))
+                .scalars()
+                .all()
+            )
+            await session.execute(update(Question).values(is_active=False))
+
+            users = [
+                User(username=f"recent-{token[:12]}-{suffix}", display_name=suffix)
+                for suffix in ("a", "b")
+            ]
+            questions = [
+                Question(text=f"recent-question-{token}-{number}", is_active=True)
+                for number in range(3)
+            ]
+            session.add_all([*users, *questions])
+            await session.flush()
+            user_ids = [user.id for user in users]
+            question_ids = [question.id for question in questions]
+            session.add_all(
+                [
+                    ServedQuestion(user_id=user_ids[0], question_id=question_ids[0]),
+                    ServedQuestion(user_id=user_ids[1], question_id=question_ids[1]),
+                ]
+            )
+            await session.commit()
+
+        provider = make_question_provider(SessionLocal)
+        fresh = await provider(set(), tuple(user_ids))
+        assert fresh is not None
+        assert fresh.id == question_ids[2]
+
+        async with SessionLocal() as session:
+            recorded_for_fresh = await session.scalar(
+                select(func.count())
+                .select_from(ServedQuestion)
+                .where(
+                    ServedQuestion.question_id == fresh.id,
+                    ServedQuestion.user_id.in_(user_ids),
+                )
+            )
+        assert recorded_for_fresh == 2
+
+        # All active questions are now recent for at least one player, so the
+        # provider must relax recency and still return from the active pool.
+        recent_fallback = await provider(set(), tuple(user_ids))
+        assert recent_fallback is not None
+        assert recent_fallback.id in question_ids
+
+        # If same-game exclusions also cover the bank, the final full-active-
+        # pool fallback must likewise keep the match alive.
+        full_pool_fallback = await provider(set(question_ids), tuple(user_ids))
+        assert full_pool_fallback is not None
+        assert full_pool_fallback.id in question_ids
+    finally:
+        async with SessionLocal() as session:
+            if question_ids:
+                await session.execute(delete(Question).where(Question.id.in_(question_ids)))
+            if user_ids:
+                await session.execute(delete(User).where(User.id.in_(user_ids)))
+            if original_active_ids:
+                await session.execute(
+                    update(Question)
+                    .where(Question.id.in_(original_active_ids))
+                    .values(is_active=True)
+                )
             await session.commit()
 
 
