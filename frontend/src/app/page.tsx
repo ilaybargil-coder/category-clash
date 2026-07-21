@@ -170,9 +170,9 @@ function LevelProgress({ user }: { user: SessionUser }) {
         </div>
         <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300/20 bg-amber-400/10 px-3 py-1.5 text-sm font-black text-amber-200">
           <img
-            src={`/assets/ranks/${rank.toLowerCase()}.png`}
+            src={`/assets/ranks/${rank.toLowerCase()}.png?v=2`}
             alt={rank}
-            className="h-10 w-10 object-contain flex-shrink-0"
+            className="h-14 w-14 object-contain flex-shrink-0"
             onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
           />
           {rank}
