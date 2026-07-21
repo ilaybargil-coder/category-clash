@@ -342,7 +342,7 @@ function GameView({
           </div>
         </header>
 
-        <section className="grid min-h-0 flex-1 overflow-hidden gap-3 lg:grid-cols-[210px_minmax(0,1fr)_210px]">
+        <section className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] overflow-hidden gap-3 lg:grid-cols-[210px_minmax(0,1fr)_210px]">
           <PlayerPanel
             player={me}
             points={pointsOf(me?.user_id)}
