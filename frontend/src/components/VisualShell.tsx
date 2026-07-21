@@ -81,7 +81,7 @@ const NAV_ITEMS: Array<{
 ];
 
 export function BrandMark({ compact = false }: { compact?: boolean }) {
-  const size = compact ? 44 : 140;
+  const size = compact ? 64 : 196;
 
   return (
     <Image

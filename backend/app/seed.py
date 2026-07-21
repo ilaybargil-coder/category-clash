@@ -116,10 +116,7 @@ for v9_question_text, v9_sources in CURATION_SOURCES_V9.items():
 
 DEMO_PASSWORD = "demo1234"
 
-DEMO_USERS = [
-    {"username": "dana", "display_name": "דנה"},
-    {"username": "omer", "display_name": "עומר"},
-]
+DEMO_USERS = []
 
 # answer tuples: (canonical, [aliases], semantic_group | None)
 QUESTIONS: list[dict] = [

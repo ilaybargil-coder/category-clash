@@ -126,16 +126,16 @@ async def test_demo_picker_preloads_signed_sessions_for_instant_selection():
     users = [
         SimpleNamespace(
             id=1,
-            username="dana",
-            display_name="דנה",
+            username="noa",
+            display_name="נועה",
             coins=0,
             wins=0,
             losses=0,
         ),
         SimpleNamespace(
             id=2,
-            username="omer",
-            display_name="עומר",
+            username="lior",
+            display_name="ליאור",
             coins=0,
             wins=0,
             losses=0,
@@ -155,10 +155,10 @@ async def test_demo_picker_preloads_signed_sessions_for_instant_selection():
 
     sessions = await demo_users(Session())
 
-    assert [item.user.username for item in sessions] == ["dana", "omer"]
+    assert [item.user.username for item in sessions] == ["noa", "lior"]
     decoded = [decode_token(item.token) for item in sessions]
     assert all(item is not None for item in decoded)
-    assert [item.username for item in decoded if item is not None] == ["dana", "omer"]
+    assert [item.username for item in decoded if item is not None] == ["noa", "lior"]
 
 
 async def test_supabase_access_token_is_validated_and_briefly_cached(monkeypatch):
