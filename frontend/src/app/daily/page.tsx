@@ -432,7 +432,7 @@ function FeedbackChip({
   if (item.status === "VALID") {
     return (
       <span className="rounded-full bg-emerald-500/15 px-3 py-1.5 text-sm font-bold text-emerald-300">
-        <AppIcon name="correct" className="inline-block h-4 w-4 align-middle" /> {item.canonical}
+        <AppIcon name="correct" className="inline-block h-6 w-6 align-middle" /> {item.canonical}
       </span>
     );
   }
@@ -453,7 +453,7 @@ function FeedbackChip({
         onPointerDown={(event) => event.preventDefault()}
         className="text-xs font-bold text-rose-300/70 underline"
       >
-        <AppIcon name="report" className="inline-block h-3.5 w-3.5 align-middle" /> דווח
+        <AppIcon name="report" className="inline-block h-6 w-6 align-middle" /> דווח
       </button>
     </span>
   );

@@ -2,7 +2,7 @@ const AVATAR_COUNT = 40;
 
 export function avatarSrc(seed: string): string {
   if (!seed) {
-    return "/assets/avatars/avatar-01.png";
+    return "/assets/avatars/avatar-01.png?v=2";
   }
 
   let hash = 5381;
@@ -12,7 +12,7 @@ export function avatarSrc(seed: string): string {
   }
 
   const avatarIndex = (hash >>> 0) % AVATAR_COUNT + 1;
-  return `/assets/avatars/avatar-${String(avatarIndex).padStart(2, "0")}.png`;
+  return `/assets/avatars/avatar-${String(avatarIndex).padStart(2, "0")}.png?v=2`;
 }
 
 export function avatarSrcFor(
@@ -20,7 +20,7 @@ export function avatarSrcFor(
   seed: string
 ): string {
   if (avatarKey) {
-    return `/assets/avatars/${avatarKey}.png`;
+    return `/assets/avatars/${avatarKey}.png?v=2`;
   }
 
   return avatarSrc(seed);

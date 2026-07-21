@@ -214,7 +214,7 @@ function XpLeaderboardPanel({
           <span className="text-xs font-bold text-violet-300">גלובלי</span>
           <h2>טבלת מובילים</h2>
         </div>
-        <AppIcon name="leaderboard" className="h-5 w-5" />
+        <AppIcon name="leaderboard" className="h-6 w-6" />
       </div>
       {!leaderboard ? (
         <p className="mt-4 text-center text-sm text-slate-500">טוענים דירוג…</p>
@@ -264,10 +264,10 @@ function XpLeaderboardRow({
 
 function StatsStrip({ user, stats }: { user: SessionUser; stats: UserStats }) {
   const statItems = [
-    { label: "משחקים", value: stats.games, icon: <AppIcon name="games" className="h-5 w-5" /> },
-    { label: "נצחונות", value: user.wins, icon: <AppIcon name="wins" className="h-5 w-5" /> },
-    { label: "הפסדים", value: user.losses, icon: <AppIcon name="losses" className="h-5 w-5" /> },
-    { label: "דיוק", value: `${stats.accuracy}%`, icon: <AppIcon name="accuracy" className="h-5 w-5" /> },
+    { label: "משחקים", value: stats.games, icon: <AppIcon name="games" className="h-10 w-10" /> },
+    { label: "נצחונות", value: user.wins, icon: <AppIcon name="wins" className="h-10 w-10" /> },
+    { label: "הפסדים", value: user.losses, icon: <AppIcon name="losses" className="h-10 w-10" /> },
+    { label: "דיוק", value: `${stats.accuracy}%`, icon: <AppIcon name="accuracy" className="h-10 w-10" /> },
   ];
 
   return (

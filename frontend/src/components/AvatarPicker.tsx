@@ -52,7 +52,7 @@ export default function AvatarPicker({
               }`}
             >
               <img
-                src={`/assets/avatars/${avatar}.png`}
+                src={`/assets/avatars/${avatar}.png?v=2`}
                 alt=""
                 className="absolute inset-0 h-full w-full object-cover"
               />

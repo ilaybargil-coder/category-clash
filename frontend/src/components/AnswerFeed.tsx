@@ -10,9 +10,9 @@ const STATUS_META: Record<
   string,
   { icon: ReactNode; label: string | null; tone: string }
 > = {
-  VALID: { icon: <AppIcon name="correct" className="h-3.5 w-3.5" />, label: null, tone: "text-emerald-700 bg-emerald-100" },
+  VALID: { icon: <AppIcon name="correct" className="h-5 w-5" />, label: null, tone: "text-emerald-700 bg-emerald-100" },
   INVALID: {
-    icon: <AppIcon name="incorrect" className="h-3.5 w-3.5" />,
+    icon: <AppIcon name="incorrect" className="h-5 w-5" />,
     label: "לא מתאים לשאלה",
     tone: "text-rose-700 bg-rose-100",
   },

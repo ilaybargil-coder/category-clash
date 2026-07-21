@@ -50,7 +50,7 @@ export default function MatchHistory() {
           <span className="text-xs font-bold text-violet-300">הקרבות האחרונים</span>
           <h2 className="mt-1 text-xl font-black text-white">היסטוריית משחקים</h2>
         </div>
-        <AppIcon name="list" className="h-5 w-5" />
+        <AppIcon name="list" className="h-6 w-6" />
       </div>
 
       {matches === null && !failed && (

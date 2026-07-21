@@ -410,8 +410,8 @@ function GameView({
 
             <div className="grid shrink-0 grid-cols-3 gap-2 border-t border-white/10 px-3 py-2 sm:px-5">
               <PowerButton label={<><SwapIcon className="inline-block h-4 w-4 align-middle" /> החלפה</>} available={myPowerups.swap_question && !optimisticallyUsed?.has("swap_question")} disabled={state.answers.length > 0 || !["QUESTION_PREVIEW", "ROUND_ACTIVE"].includes(state.phase)} onClick={() => onPowerup("swap_question")} />
-              <PowerButton label={<><AppIcon name="timer" className="inline-block h-4 w-4 align-middle" /> הארכה</>} available={myPowerups.extend_time && !optimisticallyUsed?.has("extend_time")} disabled={!myTurn} onClick={() => onPowerup("extend_time")} />
-              <PowerButton label={<><AppIcon name="star" className="inline-block h-4 w-4 align-middle" /> ג׳וקר</>} available={myPowerups.joker && !optimisticallyUsed?.has("use_joker")} disabled={!myTurn} onClick={() => onPowerup("use_joker")} />
+              <PowerButton label={<><AppIcon name="timer" className="inline-block h-6 w-6 align-middle" /> הארכה</>} available={myPowerups.extend_time && !optimisticallyUsed?.has("extend_time")} disabled={!myTurn} onClick={() => onPowerup("extend_time")} />
+              <PowerButton label={<><AppIcon name="star" className="inline-block h-6 w-6 align-middle" /> ג׳וקר</>} available={myPowerups.joker && !optimisticallyUsed?.has("use_joker")} disabled={!myTurn} onClick={() => onPowerup("use_joker")} />
             </div>
 
             <form
@@ -511,7 +511,7 @@ function PowerButton({
       className="touch-manipulation rounded-lg border border-violet-400/20 bg-violet-500/10 px-2 py-2 text-xs font-bold text-violet-200 transition-transform duration-75 active:scale-95 disabled:cursor-not-allowed disabled:opacity-30"
     >
       {label}
-      {!available && <AppIcon name="correct" className="inline-block h-3.5 w-3.5 align-middle" />}
+      {!available && <AppIcon name="correct" className="inline-block h-4 w-4 align-middle" />}
     </button>
   );
 }
