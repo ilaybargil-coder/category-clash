@@ -3,7 +3,11 @@
 import { useState } from "react";
 import { BrandMark } from "@/components/VisualShell";
 import { createProfile } from "@/lib/api";
-import { getSupabaseClient } from "@/lib/supabase";
+import {
+  getSupabaseClient,
+  SUPABASE_AUTH_CONFIGURED,
+  SUPABASE_AUTH_ENABLED,
+} from "@/lib/supabase";
 import type { SessionUser } from "@/lib/types";
 import { isValidUsername, normalizeUsername } from "@/lib/username";
 
@@ -24,7 +28,11 @@ export default function AuthScreen({ profileToken, onProfileReady }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [showPasswordReset, setShowPasswordReset] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
   const completingProfile = Boolean(profileToken);
+  const passwordResetAvailable =
+    SUPABASE_AUTH_ENABLED && SUPABASE_AUTH_CONFIGURED;
 
   async function finishProfile(
     token: string,
@@ -98,6 +106,25 @@ export default function AuthScreen({ profileToken, onProfileReady }: Props) {
     }
   }
 
+  async function requestPasswordReset(event: React.FormEvent) {
+    event.preventDefault();
+    setError(null);
+    setMessage(null);
+    setBusy(true);
+    try {
+      const { error: authError } = await getSupabaseClient().auth.resetPasswordForEmail(
+        resetEmail.trim(),
+        { redirectTo: `${window.location.origin}/reset-password` }
+      );
+      if (authError) throw authError;
+      setMessage("שלחנו קישור לאיפוס לכתובת המייל — בדקו את תיבת הדואר");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "שליחת הקישור נכשלה");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <main className="app-background min-h-dvh p-3 sm:p-5">
       <div className="mx-auto grid min-h-[calc(100dvh-1.5rem)] max-w-6xl overflow-hidden rounded-2xl border border-white/10 bg-[#071019]/85 shadow-2xl sm:min-h-[calc(100dvh-2.5rem)] lg:grid-cols-[1.05fr_0.95fr]">
@@ -144,17 +171,21 @@ export default function AuthScreen({ profileToken, onProfileReady }: Props) {
             <h2 className="mt-2 text-3xl font-black text-white">
               {completingProfile
                 ? "בוחרים זהות למשחק"
-                : mode === "login"
-                  ? "חוזרים לזירה"
-                  : "יוצרים שחקן חדש"}
+                : showPasswordReset
+                  ? "מאפסים את הסיסמה"
+                  : mode === "login"
+                    ? "חוזרים לזירה"
+                    : "יוצרים שחקן חדש"}
             </h2>
             <p className="mt-2 text-sm text-slate-500">
               {completingProfile
                 ? "בחרו שם משתמש וכינוי שיופיע מול היריבים."
-                : "חשבון אחד, וכל ההתקדמות נשמרת."}
+                : showPasswordReset
+                  ? "הזינו את כתובת המייל ונשלח אליכם קישור מאובטח."
+                  : "חשבון אחד, וכל ההתקדמות נשמרת."}
             </p>
 
-            {!completingProfile && (
+            {!completingProfile && !showPasswordReset && (
               <div className="mt-7 grid grid-cols-2 rounded-xl border border-white/10 bg-black/20 p-1">
                 <button
                   type="button"
@@ -181,6 +212,55 @@ export default function AuthScreen({ profileToken, onProfileReady }: Props) {
               </div>
             )}
 
+            {showPasswordReset ? (
+              <form onSubmit={requestPasswordReset} className="mt-6 space-y-4">
+                <Field label="אימייל">
+                  <input
+                    type="email"
+                    autoComplete="email"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    required
+                    value={resetEmail}
+                    onChange={(event) => setResetEmail(event.target.value)}
+                    placeholder="name@example.com"
+                    className="dark-input text-left"
+                    dir="ltr"
+                  />
+                </Field>
+
+                {error && (
+                  <p className="rounded-xl border border-rose-400/20 bg-rose-500/10 p-3 text-sm text-rose-300">
+                    {error}
+                  </p>
+                )}
+                {message && (
+                  <p className="rounded-xl border border-emerald-400/20 bg-emerald-500/10 p-3 text-sm text-emerald-300">
+                    {message}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={busy}
+                  className="primary-button w-full py-3.5 text-base"
+                >
+                  {busy ? "שולחים..." : "שלחו לי קישור לאיפוס"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPasswordReset(false);
+                    setError(null);
+                    setMessage(null);
+                  }}
+                  className="w-full py-2 text-sm font-bold text-violet-300 transition hover:text-violet-200"
+                >
+                  חזרה לכניסה
+                </button>
+              </form>
+            ) : (
             <form onSubmit={submit} className="mt-6 space-y-4">
               {!completingProfile && (
                 <Field label="אימייל">
@@ -247,6 +327,20 @@ export default function AuthScreen({ profileToken, onProfileReady }: Props) {
                       className="dark-input"
                     />
                   </Field>
+                  {mode === "login" && passwordResetAvailable && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setResetEmail(email);
+                        setShowPasswordReset(true);
+                        setError(null);
+                        setMessage(null);
+                      }}
+                      className="text-sm font-bold text-violet-300 transition hover:text-violet-200"
+                    >
+                      שכחתי סיסמה?
+                    </button>
+                  )}
                   {mode === "register" && (
                     <Field label="אימות סיסמה">
                       <input
@@ -286,8 +380,9 @@ export default function AuthScreen({ profileToken, onProfileReady }: Props) {
                     : mode === "login"
                       ? "כניסה למשחק"
                       : "יצירת חשבון"}
-              </button>
+                </button>
             </form>
+            )}
           </div>
         </section>
       </div>
