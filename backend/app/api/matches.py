@@ -1,4 +1,6 @@
-"""Authenticated match result details."""
+"""Authenticated match history and result details."""
+
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -18,6 +20,70 @@ class MatchXpResultOut(BaseModel):
     new_xp: int
     new_level: int
     rank: str
+
+
+class MatchHistoryOpponentOut(BaseModel):
+    display_name: str
+    username: str
+
+
+class MatchHistoryScoreOut(BaseModel):
+    player: int
+    opponent: int
+
+
+class MatchHistoryOut(BaseModel):
+    id: int
+    opponent: MatchHistoryOpponentOut
+    won: bool
+    score: MatchHistoryScoreOut
+    finished_at: datetime
+
+
+@router.get("", response_model=list[MatchHistoryOut])
+async def match_history(
+    current: TokenUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> list[MatchHistoryOut]:
+    rows = (
+        await session.execute(
+            select(Match, User)
+            .join(
+                User,
+                or_(
+                    (Match.player1_id == current.id) & (User.id == Match.player2_id),
+                    (Match.player2_id == current.id) & (User.id == Match.player1_id),
+                ),
+            )
+            .where(
+                or_(Match.player1_id == current.id, Match.player2_id == current.id),
+                Match.status == "FINISHED",
+                Match.finished_at.is_not(None),
+            )
+            .order_by(Match.finished_at.desc(), Match.id.desc())
+            .limit(20)
+        )
+    ).all()
+
+    history: list[MatchHistoryOut] = []
+    for match, opponent in rows:
+        current_is_player1 = match.player1_id == current.id
+        history.append(
+            MatchHistoryOut(
+                id=match.id,
+                opponent=MatchHistoryOpponentOut(
+                    display_name=opponent.display_name,
+                    username=opponent.username,
+                ),
+                won=match.winner_id == current.id,
+                score=MatchHistoryScoreOut(
+                    player=match.score_p1 if current_is_player1 else match.score_p2,
+                    opponent=match.score_p2 if current_is_player1 else match.score_p1,
+                ),
+                finished_at=match.finished_at,
+            )
+        )
+    return history
 
 
 @router.get("/{match_id}/xp-result", response_model=MatchXpResultOut)

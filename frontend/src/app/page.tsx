@@ -7,6 +7,7 @@ import AuthScreen from "@/components/AuthScreen";
 import DashboardFriendsCarousel from "@/components/DashboardFriendsCarousel";
 import FriendsPanel from "@/components/FriendsPanel";
 import InviteToast from "@/components/InviteToast";
+import MatchHistory from "@/components/MatchHistory";
 import {
   AccuracyIcon,
   GamepadIcon,
@@ -372,6 +373,7 @@ function StatsView({ user, stats }: { user: SessionUser; stats: UserStats }) {
         <div className="performance-row"><span>נצחונות</span><div><i style={{ width: `${winWidth}%` }} /></div><b>{user.wins}</b></div>
         <div className="performance-row performance-row--loss"><span>הפסדים</span><div><i style={{ width: `${lossWidth}%` }} /></div><b>{user.losses}</b></div>
       </article>
+      <MatchHistory />
     </div>
   );
 }

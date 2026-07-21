@@ -82,6 +82,20 @@ export interface MatchXpResult {
   rank: string;
 }
 
+export interface MatchHistoryItem {
+  id: number;
+  opponent: {
+    display_name: string;
+    username: string;
+  };
+  won: boolean;
+  score: {
+    player: number;
+    opponent: number;
+  };
+  finished_at: string;
+}
+
 export type SoloAnswerStatus =
   | "VALID"
   | "INVALID"
@@ -256,6 +270,10 @@ export function fetchMatchXpResult(matchId: string) {
   return request<MatchXpResult>(
     `/api/matches/${encodeURIComponent(matchId)}/xp-result`
   );
+}
+
+export function fetchMatchHistory() {
+  return request<MatchHistoryItem[]>("/api/matches");
 }
 
 export function fetchXpLeaderboard() {
