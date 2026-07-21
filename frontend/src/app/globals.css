@@ -494,10 +494,32 @@
 /* Premium lobby design system */
 @layer components {
   .app-background {
+    isolation: isolate;
     background:
       radial-gradient(circle at 72% -10%, rgba(155, 93, 229, .24), transparent 34rem),
       radial-gradient(circle at 4% 78%, rgba(79, 181, 150, .12), transparent 30rem),
       var(--app-bg);
+  }
+
+  .app-background::before,
+  .app-background::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .app-background::before {
+    z-index: -2;
+    background-image: url('/assets/background.png');
+    background-position: center;
+    background-size: cover;
+    background-repeat: no-repeat;
+  }
+
+  .app-background::after {
+    z-index: -1;
+    background: rgba(8, 6, 16, 0.68);
   }
 
   .surface-panel {
