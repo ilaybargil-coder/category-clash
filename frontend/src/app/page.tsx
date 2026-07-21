@@ -13,7 +13,6 @@ import AppIcon from "@/components/AppIcon";
 import {
   PlusIcon,
   TargetIcon,
-  WaveIcon,
 } from "@/components/icons";
 import {
   BrandMark,
@@ -105,7 +104,7 @@ function HomeView({
       <header className="view-greeting">
         <div>
           <span>מוכנים לסיבוב הבא?</span>
-          <h1>שלום {user.display_name}! <WaveIcon className="inline-block h-[1em] w-[1em] align-[-0.12em]" /></h1>
+          <h1>שלום {user.display_name}!</h1>
         </div>
       </header>
 
@@ -157,6 +156,7 @@ function HomeView({
 }
 
 function LevelProgress({ user }: { user: SessionUser }) {
+  const rank = user.rank;
   const progress = Math.min(
     100,
     Math.round((user.xp_into_level / user.xp_for_next_level) * 100)
@@ -169,7 +169,13 @@ function LevelProgress({ user }: { user: SessionUser }) {
           <h2 className="mt-1 text-lg font-black text-white">הדרך לרמה הבאה</h2>
         </div>
         <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300/20 bg-amber-400/10 px-3 py-1.5 text-sm font-black text-amber-200">
-          <AppIcon name="medal" className="h-4 w-4" /> {user.rank}
+          <img
+            src={`/assets/ranks/${rank.toLowerCase()}.png`}
+            alt={rank}
+            className="h-10 w-10 object-contain flex-shrink-0"
+            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+          />
+          {rank}
         </span>
       </div>
       <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-white/10">

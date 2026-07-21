@@ -38,15 +38,25 @@ def rank_for_level(level: int) -> str:
 
     if level < 1:
         raise ValueError("level must be at least 1")
-    if level < 10:
+    if level < 5:
         return "Bronze"
-    if level < 20:
+    if level < 10:
         return "Silver"
-    if level < 30:
+    if level < 15:
         return "Gold"
-    if level < 40:
+    if level < 20:
         return "Platinum"
-    return "Diamond"
+    if level < 30:
+        return "Diamond"
+    if level < 45:
+        return "Master"
+    if level < 60:
+        return "Grandmaster"
+    if level < 75:
+        return "Elite"
+    if level < 100:
+        return "Champion"
+    return "Legend"
 
 
 def win_streak_bonus(current_streak: int) -> int:
