@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import AppIcon from "@/components/AppIcon";
-import { ArrowLeftIcon, ShareIcon } from "@/components/icons";
 import { UserAvatar } from "@/components/VisualShell";
 import { useViewportHeight } from "@/hooks/useViewportHeight";
 import {
@@ -259,7 +258,7 @@ export default function DailyPage() {
               onClick={() => router.push("/")}
               className="absolute right-4 top-4 text-sm font-bold text-slate-400 hover:text-white"
             >
-              חזרה ללובי <ArrowLeftIcon className="inline-block h-4 w-4 align-middle" />
+              חזרה ללובי <AppIcon name="back" className="inline-block h-4 w-4 align-middle" />
             </button>
             <p className="relative mt-7 text-xs font-black tracking-[0.16em] text-amber-300 sm:mt-0">
               <AppIcon name="daily" className="inline-block h-5 w-5 align-middle" /> האתגר היומי
@@ -284,7 +283,7 @@ export default function DailyPage() {
                   onClick={() => void shareResult(today.result!)}
                   className="primary-button mt-6 w-full px-6 py-3 sm:w-auto"
                 >
-                  שיתוף התוצאה <ShareIcon className="inline-block h-4 w-4 align-middle" />
+                  שיתוף התוצאה <AppIcon name="share" className="inline-block h-4 w-4 align-middle" />
                 </button>
                 {shareMessage && <p className="mt-3 text-sm font-bold text-slate-300">{shareMessage}</p>}
               </section>

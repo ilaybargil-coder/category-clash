@@ -44,6 +44,10 @@ const MAP: Record<string, string> = {
   categories: "43-categories",
   report: "44-report",
   logout: "45-logout",
+  "sound-on": "46-sound-on",
+  "sound-off": "47-sound-off",
+  back: "48-back",
+  plus: "49-plus",
 };
 
 export default function AppIcon({
@@ -57,7 +61,7 @@ export default function AppIcon({
 }) {
   return (
     <img
-      src={`/assets/icons/${MAP[name]}.png`}
+      src={`/assets/icons/${MAP[name]}.png?v=2`}
       alt={alt}
       className={`${className} object-contain`}
       style={{ display: "block", maxWidth: "100%", maxHeight: "100%" }}

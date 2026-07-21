@@ -3,12 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import AppIcon from "@/components/AppIcon";
-import {
-  ShareIcon,
-  SoundOffIcon,
-  SoundOnIcon,
-  SwapIcon,
-} from "@/components/icons";
 import { useGameSocket } from "@/hooks/useGameSocket";
 import { useViewportHeight } from "@/hooks/useViewportHeight";
 import { ApiError, fetchMatchXpResult, refreshSessionUser } from "@/lib/api";
@@ -332,7 +326,7 @@ function GameView({
               className="grid h-8 w-8 touch-manipulation place-items-center rounded-full border border-white/10 bg-black/20 text-sm transition hover:bg-white/10"
             >
               <span aria-hidden="true">
-                {soundMuted ? <SoundOffIcon className="h-4 w-4" /> : <SoundOnIcon className="h-4 w-4" />}
+                {soundMuted ? <AppIcon name="sound-off" className="h-4 w-4" /> : <AppIcon name="sound-on" className="h-4 w-4" />}
               </span>
             </button>
             <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 font-mono tracking-wider">
@@ -413,7 +407,7 @@ function GameView({
             <AnswerFeed answers={state.answers} myUserId={state.you} players={state.players} />
 
             <div className="grid shrink-0 grid-cols-3 gap-2 border-t border-white/10 px-3 py-2 sm:px-5">
-              <PowerButton label={<><SwapIcon className="inline-block h-4 w-4 align-middle" /> החלפה</>} available={myPowerups.swap_question && !optimisticallyUsed?.has("swap_question")} disabled={state.answers.length > 0 || !["QUESTION_PREVIEW", "ROUND_ACTIVE"].includes(state.phase)} onClick={() => onPowerup("swap_question")} />
+              <PowerButton label={<><AppIcon name="random" className="inline-block h-4 w-4 align-middle" /> החלפה</>} available={myPowerups.swap_question && !optimisticallyUsed?.has("swap_question")} disabled={state.answers.length > 0 || !["QUESTION_PREVIEW", "ROUND_ACTIVE"].includes(state.phase)} onClick={() => onPowerup("swap_question")} />
               <PowerButton label={<><AppIcon name="timer" className="inline-block h-6 w-6 align-middle" /> הארכה</>} available={myPowerups.extend_time && !optimisticallyUsed?.has("extend_time")} disabled={!myTurn} onClick={() => onPowerup("extend_time")} />
               <PowerButton label={<><AppIcon name="star" className="inline-block h-6 w-6 align-middle" /> ג׳וקר</>} available={myPowerups.joker && !optimisticallyUsed?.has("use_joker")} disabled={!myTurn} onClick={() => onPowerup("use_joker")} />
             </div>
@@ -437,7 +431,7 @@ function GameView({
                 disabled={!myTurn || !draft.trim()}
                 className="primary-button grid w-12 touch-manipulation place-items-center text-xl transition-transform duration-75 active:scale-95 sm:w-auto sm:min-w-28 sm:px-6"
               >
-                <span className="sm:hidden"><ShareIcon className="h-5 w-5" /></span>
+                <span className="sm:hidden"><AppIcon name="share" className="h-5 w-5" /></span>
                 <span className="hidden sm:inline">שליחה</span>
               </button>
             </form>
