@@ -145,6 +145,8 @@ class ApprovedAnswer(Base):
     semantic_group: Mapped[str | None] = mapped_column(String(120), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    source: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     question: Mapped["Question"] = relationship(back_populates="answers")
     aliases: Mapped[list["AnswerAlias"]] = relationship(

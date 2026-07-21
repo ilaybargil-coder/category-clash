@@ -1,7 +1,14 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
-import { CheckIcon, LosesIcon, SimilarIcon, TargetIcon } from "@/components/icons";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  CheckIcon,
+  LosesIcon,
+  ReportIcon,
+  SimilarIcon,
+  TargetIcon,
+} from "@/components/icons";
+import { reportAnswer } from "@/lib/api";
 import { playAccept, playDuplicate, playReject } from "@/lib/sfx";
 import type { AnswerItem, PlayerInfo } from "@/lib/types";
 
@@ -31,13 +38,20 @@ interface Props {
   answers: AnswerItem[];
   myUserId: number;
   players: PlayerInfo[];
+  questionId: number | null;
 }
 
-export default function AnswerFeed({ answers, myUserId, players }: Props) {
+export default function AnswerFeed({
+  answers,
+  myUserId,
+  players,
+  questionId,
+}: Props) {
   const feedRef = useRef<HTMLDivElement>(null);
   const seenAnswerIdsRef = useRef(
     new Set(answers.map((answer) => answer.submission_id))
   );
+  const [reportedIds, setReportedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const feed = feedRef.current;
@@ -63,6 +77,24 @@ export default function AnswerFeed({ answers, myUserId, players }: Props) {
 
   const nameOf = (userId: number) =>
     players.find((p) => p.user_id === userId)?.display_name ?? "";
+
+  async function handleReport(answer: AnswerItem) {
+    if (
+      questionId === null ||
+      answer.user_id !== myUserId ||
+      answer.status !== "INVALID"
+    ) {
+      return;
+    }
+    try {
+      await reportAnswer(questionId, answer.raw_text);
+      setReportedIds((previous) =>
+        new Set(previous).add(answer.submission_id)
+      );
+    } catch {
+      // Keep the answer reportable if the request fails.
+    }
+  }
 
   return (
     <div
@@ -125,6 +157,18 @@ export default function AnswerFeed({ answers, myUserId, players }: Props) {
               >
                 <span>{nameOf(answer.user_id)}</span>
                 {meta.label && <span>· {meta.label}</span>}
+                {mine && answer.status === "INVALID" && (
+                  <button
+                    type="button"
+                    disabled={reportedIds.has(answer.submission_id)}
+                    onClick={() => void handleReport(answer)}
+                    onPointerDown={(event) => event.preventDefault()}
+                    className="text-xs font-bold text-rose-300/70 underline disabled:opacity-40"
+                  >
+                    <ReportIcon className="inline-block h-4 w-4 align-middle" />{" "}
+                    דווח
+                  </button>
+                )}
               </div>
             </div>
           </div>

@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     auth_identity_cache_seconds: int = 300
     admin_usernames: str = "ilaybargil"
 
+    # Report self-learning
+    auto_approve_report_threshold: int = 3
+    anthropic_api_key: str = ""
+    report_judge_model: str = "claude-haiku-4-5-20251001"
+
     # Gameplay
     turn_seconds: float = 15.0
     POWERUP_GRACE_MS: int = 600

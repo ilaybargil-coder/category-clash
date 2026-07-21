@@ -414,7 +414,13 @@ function GameView({
               )}
             </div>
 
-            <AnswerFeed answers={state.answers} myUserId={state.you} players={state.players} />
+            <AnswerFeed
+              key={`${state.round_no}:${state.question?.id ?? "none"}`}
+              answers={state.answers}
+              myUserId={state.you}
+              players={state.players}
+              questionId={state.question?.id ?? null}
+            />
 
             <div className="grid shrink-0 grid-cols-3 gap-2 border-t border-white/10 px-3 py-2 sm:px-5">
               <PowerButton label={<><SwapIcon className="h-5 w-5 inline-block align-middle" /> החלפה</>} available={myPowerups.swap_question && !optimisticallyUsed?.has("swap_question")} disabled={state.answers.length > 0 || !["QUESTION_PREVIEW", "ROUND_ACTIVE"].includes(state.phase)} onClick={() => onPowerup("swap_question")} />

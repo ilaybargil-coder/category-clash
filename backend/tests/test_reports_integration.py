@@ -6,6 +6,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import delete, select
 from sqlalchemy.orm import selectinload
 
+from app.api import reports as reports_api
 from app.auth import create_access_token
 from app.config import settings
 from app.db import SessionLocal, engine
@@ -94,6 +95,36 @@ async def moderation_context(monkeypatch):
         await session.execute(delete(Question).where(Question.id == question.id))
         await session.execute(
             delete(User).where(User.id.in_([admin.id, reporter_one.id, reporter_two.id]))
+        )
+        await session.commit()
+
+
+@pytest.fixture
+async def self_learning_context(monkeypatch):
+    suffix = uuid.uuid4().hex[:8]
+    async with SessionLocal() as session:
+        admin = User(username=f"learnadmin{suffix}", display_name="Learning Admin", coins=0)
+        reporters = [
+            User(
+                username=f"learner{number}{suffix}",
+                display_name=f"Learning Reporter {number}",
+                coins=0,
+            )
+            for number in range(1, 4)
+        ]
+        question = Question(text=f"פירות מיוחדים {suffix}")
+        session.add_all([admin, *reporters, question])
+        await session.commit()
+        for item in (admin, *reporters, question):
+            await session.refresh(item)
+
+    monkeypatch.setattr(settings, "admin_usernames", admin.username)
+    yield admin, reporters, question
+
+    async with SessionLocal() as session:
+        await session.execute(delete(Question).where(Question.id == question.id))
+        await session.execute(
+            delete(User).where(User.id.in_([admin.id, *(u.id for u in reporters)]))
         )
         await session.commit()
 
@@ -293,6 +324,9 @@ async def test_admin_approves_report_as_new_answer(client, moderation_context) -
             .all()
         )
     assert report is not None and report.status == "approved"
+    assert (
+        next(answer for answer in answers if answer.canonical == "תשובה נקייה").source == "manual"
+    )
     index = build_question_index(
         [
             (
@@ -380,11 +414,193 @@ async def test_admin_rejects_pending_report(client, moderation_context) -> None:
 
 @pytest.mark.integration
 @requires_database
+async def test_crowd_threshold_auto_approves_and_matcher_accepts(
+    client, self_learning_context, monkeypatch
+) -> None:
+    _admin, reporters, question = self_learning_context
+    monkeypatch.setattr(settings, "auto_approve_report_threshold", 3)
+    monkeypatch.setattr(settings, "anthropic_api_key", "")
+
+    responses = []
+    for reporter, raw_text in zip(
+        reporters,
+        ("פרי-חדש", "פרי חדש", "  פרי   חדש  "),
+        strict=True,
+    ):
+        responses.append(
+            await client.post(
+                "/api/reports",
+                headers=auth_headers(reporter),
+                json={"question_id": question.id, "raw_text": raw_text},
+            )
+        )
+
+    assert all(response.status_code == 200 for response in responses)
+    assert responses[-1].json()["status"] == "approved"
+    async with SessionLocal() as session:
+        reports = (
+            (
+                await session.execute(
+                    select(AnswerReport).where(AnswerReport.question_id == question.id)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        answer = await session.scalar(
+            select(ApprovedAnswer)
+            .where(
+                ApprovedAnswer.question_id == question.id,
+                ApprovedAnswer.source == "crowd",
+            )
+            .options(selectinload(ApprovedAnswer.aliases))
+        )
+
+    assert len(reports) == 3
+    assert {report.status for report in reports} == {"approved"}
+    assert answer is not None and answer.is_active
+    index = build_question_index(
+        [(answer.id, answer.canonical, answer.semantic_group, [a.alias for a in answer.aliases])]
+    )
+    result = RoundValidator(index).check("פרי חדש")
+    assert result.status == AnswerStatus.VALID
+    assert result.entry is not None and result.entry.answer_id == answer.id
+
+
+@pytest.mark.integration
+@requires_database
+async def test_judge_accept_auto_approves_only_brand_new_group(
+    client, self_learning_context, monkeypatch
+) -> None:
+    _admin, reporters, question = self_learning_context
+    calls: list[tuple[str, str]] = []
+
+    async def accept(question_text: str, candidate: str):
+        calls.append((question_text, candidate))
+        return "accept"
+
+    monkeypatch.setattr(settings, "auto_approve_report_threshold", 99)
+    monkeypatch.setattr(reports_api, "judge_report", accept)
+    created = await client.post(
+        "/api/reports",
+        headers=auth_headers(reporters[0]),
+        json={"question_id": question.id, "raw_text": "תשובת שופט"},
+    )
+    duplicate = await client.post(
+        "/api/reports",
+        headers=auth_headers(reporters[0]),
+        json={"question_id": question.id, "raw_text": "תשובת-שופט"},
+    )
+
+    assert created.status_code == duplicate.status_code == 200
+    assert created.json()["status"] == "approved"
+    assert duplicate.json() == created.json()
+    assert calls == [(question.text, "תשובת שופט")]
+    async with SessionLocal() as session:
+        answer = await session.scalar(
+            select(ApprovedAnswer).where(
+                ApprovedAnswer.question_id == question.id,
+                ApprovedAnswer.source == "llm",
+            )
+        )
+    assert answer is not None and answer.canonical == "תשובת שופט"
+
+
+@pytest.mark.integration
+@requires_database
+async def test_judge_disabled_without_key_leaves_report_pending(
+    client, self_learning_context, monkeypatch
+) -> None:
+    _admin, reporters, question = self_learning_context
+    monkeypatch.setattr(settings, "auto_approve_report_threshold", 99)
+    monkeypatch.setattr(settings, "anthropic_api_key", "")
+
+    created = await client.post(
+        "/api/reports",
+        headers=auth_headers(reporters[0]),
+        json={"question_id": question.id, "raw_text": "בלי שופט"},
+    )
+
+    assert created.status_code == 200
+    assert created.json()["status"] == "pending"
+    async with SessionLocal() as session:
+        answer_count = await session.scalar(
+            select(ApprovedAnswer.id).where(ApprovedAnswer.question_id == question.id)
+        )
+    assert answer_count is None
+
+
+@pytest.mark.integration
+@requires_database
+async def test_pending_count_and_auto_approved_audit_and_undo(
+    client, self_learning_context, monkeypatch
+) -> None:
+    admin, reporters, question = self_learning_context
+    admin_headers = auth_headers(admin)
+    monkeypatch.setattr(settings, "auto_approve_report_threshold", 99)
+    monkeypatch.setattr(settings, "anthropic_api_key", "")
+    before = await client.get("/api/reports/pending/count", headers=admin_headers)
+    assert before.status_code == 200
+
+    for reporter, raw_text in (
+        (reporters[0], "קבוצה אחת"),
+        (reporters[1], "קבוצה-אחת"),
+        (reporters[2], "קבוצה שנייה"),
+    ):
+        response = await client.post(
+            "/api/reports",
+            headers=auth_headers(reporter),
+            json={"question_id": question.id, "raw_text": raw_text},
+        )
+        assert response.status_code == 200
+
+    after = await client.get("/api/reports/pending/count", headers=admin_headers)
+    assert after.status_code == 200
+    assert after.json()["count"] == before.json()["count"] + 2
+
+    async with SessionLocal() as session:
+        auto_answer = ApprovedAnswer(
+            question_id=question.id,
+            canonical="תשובה לביטול",
+            is_active=True,
+            source="crowd",
+        )
+        session.add(auto_answer)
+        await session.commit()
+        await session.refresh(auto_answer)
+
+    audit = await client.get("/api/reports/auto-approved", headers=admin_headers)
+    assert audit.status_code == 200
+    audited = next(item for item in audit.json() if item["id"] == auto_answer.id)
+    assert audited == {
+        "id": auto_answer.id,
+        "question_text": question.text,
+        "canonical": "תשובה לביטול",
+        "source": "crowd",
+        "created_at": auto_answer.created_at.isoformat().replace("+00:00", "Z"),
+    }
+
+    undone = await client.post(
+        "/api/reports/undo",
+        headers=admin_headers,
+        json={"approved_answer_id": auto_answer.id},
+    )
+    assert undone.status_code == 200
+    assert undone.json() == {"approved_answer_id": auto_answer.id, "is_active": False}
+    async with SessionLocal() as session:
+        deactivated = await session.get(ApprovedAnswer, auto_answer.id)
+    assert deactivated is not None and not deactivated.is_active
+
+
+@pytest.mark.integration
+@requires_database
 async def test_non_admin_cannot_access_review_endpoints(client, moderation_context) -> None:
     _admin, reporter, _other_reporter, question, existing_answer = moderation_context
     headers = auth_headers(reporter)
     requests = [
         client.get("/api/reports/pending", headers=headers),
+        client.get("/api/reports/pending/count", headers=headers),
+        client.get("/api/reports/auto-approved", headers=headers),
         client.get(f"/api/reports/context/{question.id}", headers=headers),
         client.post(
             "/api/reports/approve",
@@ -401,6 +617,11 @@ async def test_non_admin_cannot_access_review_endpoints(client, moderation_conte
             "/api/reports/reject",
             headers=headers,
             json={"question_id": question.id, "normalized": "blocked"},
+        ),
+        client.post(
+            "/api/reports/undo",
+            headers=headers,
+            json={"approved_answer_id": existing_answer.id},
         ),
     ]
 

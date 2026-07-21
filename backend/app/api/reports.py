@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from typing import Literal
 
@@ -6,14 +7,20 @@ from pydantic import BaseModel, Field
 from sqlalchemy import distinct, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from ..auth import TokenUser, get_current_user
 from ..config import settings
 from ..db import get_session
 from ..game.validator import normalize_answer
 from ..models import AnswerAlias, AnswerReport, ApprovedAnswer, Question
+from ..report_judge import judge_report
 
 router = APIRouter(prefix="/api")
+logger = logging.getLogger(__name__)
+
+AutoApprovalSource = Literal["crowd", "llm"]
+AUTO_APPROVAL_SOURCES = ("crowd", "llm")
 
 
 class CreateAnswerReport(BaseModel):
@@ -70,6 +77,27 @@ class ReviewResult(BaseModel):
     updated_reports: int
 
 
+class PendingAnswerReportCount(BaseModel):
+    count: int
+
+
+class AutoApprovedAnswerOut(BaseModel):
+    id: int
+    question_text: str
+    canonical: str
+    source: AutoApprovalSource
+    created_at: datetime
+
+
+class UndoAutoApprovedAnswer(BaseModel):
+    approved_answer_id: int = Field(gt=0)
+
+
+class UndoAutoApprovedAnswerResult(BaseModel):
+    approved_answer_id: int
+    is_active: Literal[False]
+
+
 def answer_report_out(report: AnswerReport) -> AnswerReportOut:
     return AnswerReportOut(
         id=report.id,
@@ -108,6 +136,83 @@ async def require_admin(current: TokenUser = Depends(get_current_user)) -> Token
     return current
 
 
+def clean_report_candidate(raw_text: str) -> str:
+    """Keep a readable display form while fitting the canonical column."""
+
+    return " ".join(raw_text.split())[:120]
+
+
+async def has_active_matching_answer(
+    session: AsyncSession,
+    question_id: int,
+    normalized: str,
+) -> bool:
+    answers = (
+        (
+            await session.execute(
+                select(ApprovedAnswer)
+                .where(
+                    ApprovedAnswer.question_id == question_id,
+                    ApprovedAnswer.is_active.is_(True),
+                )
+                .options(selectinload(ApprovedAnswer.aliases))
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return any(
+        normalize_answer(form) == normalized
+        for answer in answers
+        for form in (answer.canonical, *(alias.alias for alias in answer.aliases))
+    )
+
+
+async def auto_approve_report_group(
+    session: AsyncSession,
+    *,
+    question_id: int,
+    normalized: str,
+    raw_text: str,
+    source: AutoApprovalSource,
+) -> bool:
+    """Approve one group inside a savepoint; learning failures never escape."""
+
+    try:
+        async with session.begin_nested():
+            if await has_active_matching_answer(session, question_id, normalized):
+                return False
+            canonical = clean_report_candidate(raw_text)
+            if not canonical:
+                return False
+            answer = ApprovedAnswer(
+                question_id=question_id,
+                canonical=canonical,
+                is_active=True,
+                source=source,
+            )
+            session.add(answer)
+            await session.flush()
+            await session.execute(
+                update(AnswerReport)
+                .where(
+                    AnswerReport.question_id == question_id,
+                    AnswerReport.normalized == normalized,
+                    AnswerReport.status == "pending",
+                )
+                .values(status="approved")
+            )
+        return True
+    except Exception:
+        logger.warning(
+            "auto-approval failed for report group question_id=%s source=%s",
+            question_id,
+            source,
+            exc_info=True,
+        )
+        return False
+
+
 @router.post("/reports", response_model=AnswerReportOut)
 async def create_answer_report(
     body: CreateAnswerReport,
@@ -115,11 +220,24 @@ async def create_answer_report(
     session: AsyncSession = Depends(get_session),
 ):
     try:
-        if await session.get(Question, body.question_id) is None:
+        question = await session.get(Question, body.question_id)
+        if question is None:
             raise HTTPException(status_code=404, detail="Question not found")
 
         normalized = normalize_answer(body.raw_text)
+        group_already_existed = (
+            await session.scalar(
+                select(AnswerReport.id)
+                .where(
+                    AnswerReport.question_id == body.question_id,
+                    AnswerReport.normalized == normalized,
+                )
+                .limit(1)
+            )
+            is not None
+        )
         report = await find_answer_report(session, body.question_id, normalized, current.id)
+        report_created = False
         if report is None:
             candidate = AnswerReport(
                 question_id=body.question_id,
@@ -132,10 +250,48 @@ async def create_answer_report(
                     session.add(candidate)
                     await session.flush()
                 report = candidate
+                report_created = True
             except IntegrityError:
                 report = await find_answer_report(session, body.question_id, normalized, current.id)
                 if report is None:
                     raise
+
+        if report.status == "pending":
+            try:
+                async with session.begin_nested():
+                    reporter_count = await session.scalar(
+                        select(func.count(distinct(AnswerReport.reporter_user_id))).where(
+                            AnswerReport.question_id == body.question_id,
+                            AnswerReport.normalized == normalized,
+                            AnswerReport.status == "pending",
+                        )
+                    )
+                    crowd_approved = False
+                    if reporter_count >= settings.auto_approve_report_threshold:
+                        crowd_approved = await auto_approve_report_group(
+                            session,
+                            question_id=body.question_id,
+                            normalized=normalized,
+                            raw_text=body.raw_text,
+                            source="crowd",
+                        )
+
+                    if not crowd_approved and report_created and not group_already_existed:
+                        verdict = await judge_report(question.text, body.raw_text)
+                        if verdict == "accept":
+                            await auto_approve_report_group(
+                                session,
+                                question_id=body.question_id,
+                                normalized=normalized,
+                                raw_text=body.raw_text,
+                                source="llm",
+                            )
+            except Exception:
+                logger.warning(
+                    "self-learning failed for report group question_id=%s",
+                    body.question_id,
+                    exc_info=True,
+                )
         await session.commit()
     except Exception:
         await session.rollback()
@@ -196,6 +352,58 @@ async def list_pending_answer_report_groups(
     return [PendingAnswerReportGroup.model_validate(row) for row in rows]
 
 
+@router.get("/reports/pending/count", response_model=PendingAnswerReportCount)
+async def count_pending_answer_report_groups(
+    _admin: TokenUser = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    groups = (
+        select(AnswerReport.question_id, AnswerReport.normalized)
+        .where(AnswerReport.status == "pending")
+        .group_by(AnswerReport.question_id, AnswerReport.normalized)
+        .subquery()
+    )
+    count = await session.scalar(select(func.count()).select_from(groups))
+    return PendingAnswerReportCount(count=count or 0)
+
+
+@router.get("/reports/auto-approved", response_model=list[AutoApprovedAnswerOut])
+async def list_auto_approved_answers(
+    _admin: TokenUser = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    rows = (
+        await session.execute(
+            select(
+                ApprovedAnswer.id,
+                Question.text.label("question_text"),
+                ApprovedAnswer.canonical,
+                ApprovedAnswer.source,
+                ApprovedAnswer.created_at,
+            )
+            .join(Question, Question.id == ApprovedAnswer.question_id)
+            .where(ApprovedAnswer.source.in_(AUTO_APPROVAL_SOURCES))
+            .order_by(ApprovedAnswer.created_at.desc(), ApprovedAnswer.id.desc())
+            .limit(100)
+        )
+    ).mappings()
+    return [AutoApprovedAnswerOut.model_validate(row) for row in rows]
+
+
+@router.post("/reports/undo", response_model=UndoAutoApprovedAnswerResult)
+async def undo_auto_approved_answer(
+    body: UndoAutoApprovedAnswer,
+    _admin: TokenUser = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    answer = await session.get(ApprovedAnswer, body.approved_answer_id)
+    if answer is None or answer.source not in AUTO_APPROVAL_SOURCES:
+        raise HTTPException(status_code=404, detail="Auto-approved answer not found")
+    answer.is_active = False
+    await session.commit()
+    return UndoAutoApprovedAnswerResult(approved_answer_id=answer.id, is_active=False)
+
+
 @router.get("/reports/context/{question_id}", response_model=AnswerReportContext)
 async def get_answer_report_context(
     question_id: int,
@@ -243,6 +451,7 @@ async def approve_answer_report(
             question_id=body.question_id,
             canonical=canonical,
             is_active=True,
+            source="manual",
         )
     else:
         if body.target_answer_id is None:
