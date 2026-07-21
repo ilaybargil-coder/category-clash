@@ -653,11 +653,17 @@ function LobbyDashboard({
 }) {
   useViewportHeight();
   const [activeView, setActiveView] = useState<DashboardView>("home");
+  const [avatarModalOpen, setAvatarModalOpen] = useState(false);
   const stats = getUserStats(user);
 
   function navigate(view: DashboardView) {
     setActiveView(view);
     window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function changeAvatar(avatar: string) {
+    onUserChange({ ...user, avatar });
+    setAvatarModalOpen(false);
   }
 
   return (
@@ -667,7 +673,23 @@ function LobbyDashboard({
         <section className="dashboard-center" dir="rtl">
           <header className="dashboard-mobile-header surface-panel">
             <BrandMark compact />
-            <div><CoinPill coins={user.coins} /><UserAvatar name={user.display_name} avatar={user.avatar} online size="sm" /></div>
+            <div>
+              <CoinPill coins={user.coins} />
+              <button
+                type="button"
+                aria-label="החלפת אווטאר"
+                onClick={() => setAvatarModalOpen(true)}
+                className="relative inline-flex rounded-full border-0 bg-transparent p-0 ring-2 ring-violet-500/60 transition hover:ring-violet-400 focus-visible:outline-none focus-visible:ring-violet-300"
+              >
+                <UserAvatar name={user.display_name} avatar={user.avatar} online size="md" />
+                <span
+                  aria-hidden="true"
+                  className="absolute bottom-0 right-0 flex h-4 w-4 items-center justify-center rounded-full bg-violet-500 text-[9px] font-black leading-none text-white shadow-md ring-1 ring-slate-950"
+                >
+                  ✎
+                </span>
+              </button>
+            </div>
           </header>
           {activeView === "home" && <HomeView user={user} stats={stats} onNavigate={navigate} />}
           {activeView === "games" && <GameActions user={user} />}
@@ -685,6 +707,33 @@ function LobbyDashboard({
       </div>
       <InviteToast />
       <MobileNav activeView={activeView} onNavigate={navigate} />
+      {avatarModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
+          onClick={() => setAvatarModalOpen(false)}
+        >
+          <div
+            className="surface-panel w-full max-w-md max-h-[80vh] overflow-y-auto rounded-2xl p-4 flex flex-col gap-4"
+            dir="rtl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-4">
+              <h2 className="text-xl font-black text-white">החלפת אווטאר</h2>
+              <button
+                type="button"
+                onClick={() => setAvatarModalOpen(false)}
+                className="rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm font-bold text-slate-200 transition hover:bg-white/10"
+              >
+                סגירה
+              </button>
+            </div>
+            <AvatarPicker
+              currentAvatar={user.avatar}
+              onAvatarChange={changeAvatar}
+            />
+          </div>
+        </div>
+      )}
     </main>
   );
 }
