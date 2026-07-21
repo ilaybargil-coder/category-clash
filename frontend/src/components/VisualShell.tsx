@@ -53,12 +53,17 @@ const NAV_ITEMS: Array<{
   },
 ];
 
-export function BrandMark({ compact = false }: { compact?: boolean }) {
-  const size = compact ? 64 : 196;
+export function BrandMark({
+  compact = false,
+  size = compact ? 64 : 196,
+}: {
+  compact?: boolean;
+  size?: number;
+}) {
 
   return (
     <Image
-      src="/assets/logo.png"
+      src="/assets/logo.png?v=2"
       alt="קרב קטגוריות"
       width={size}
       height={size}
@@ -177,7 +182,7 @@ export function RightSidebar({
 }) {
   return (
     <aside className="dashboard-right" dir="rtl">
-      <div className="right-sidebar__brand"><BrandMark compact /></div>
+      <div className="right-sidebar__brand"><BrandMark compact size={120} /></div>
       <section className="right-mini-profile surface-panel">
         <UserAvatar name={user.display_name} avatar={user.avatar} online size="md" />
         <div className="min-w-0 flex-1">
