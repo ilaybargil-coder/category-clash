@@ -40,7 +40,7 @@ def make_question_provider(session_factory: async_sessionmaker):
         exclude_ids: set[int], player_ids: Collection[int] = ()
     ) -> QuestionData | None:
         async with session_factory() as session:
-            unique_player_ids = sorted(set(player_ids))
+            unique_player_ids = sorted({player_id for player_id in player_ids if player_id > 0})
             recent_ids: set[int] = set()
             if unique_player_ids:
                 try:
@@ -154,12 +154,15 @@ class DbResultSink(ResultSink):
     """Persists match history and every submitted answer (the raw log later
     feeds the admin's rejected-answers review screen)."""
 
-    def __init__(self, session_factory: async_sessionmaker) -> None:
+    def __init__(self, session_factory: async_sessionmaker, *, practice: bool = False) -> None:
         self._sf = session_factory
+        self._practice = practice
         self._match_ids: dict[str, int] = {}
         self._round_ids: dict[tuple[str, int], int] = {}
 
     async def on_match_start(self, code: str, p1_id: int, p2_id: int) -> None:
+        if self._practice or p1_id <= 0 or p2_id <= 0:
+            return
         async with self._sf() as session:
             match = Match(code=code, player1_id=p1_id, player2_id=p2_id)
             session.add(match)
@@ -195,6 +198,8 @@ class DbResultSink(ResultSink):
         status: str,
         matched_answer_id: int | None,
     ) -> None:
+        if user_id <= 0:
+            return
         round_id = self._round_ids.get((code, round_no))
         if round_id is None:
             return
@@ -238,6 +243,10 @@ class DbResultSink(ResultSink):
     async def on_match_end(
         self, code: str, winner_id: int, score: dict[int, int], reason: str
     ) -> None:
+        if self._practice:
+            self._match_ids.pop(code, None)
+            self._round_ids = {k: v for k, v in self._round_ids.items() if k[0] != code}
+            return
         match_id = self._match_ids.pop(code, None)
         self._round_ids = {k: v for k, v in self._round_ids.items() if k[0] != code}
         if match_id is None:

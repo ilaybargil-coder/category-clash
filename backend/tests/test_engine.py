@@ -4,7 +4,14 @@ import asyncio
 
 import pytest
 
-from app.game.engine import GameConfig, GameRoom, PowerUpStatus, RoomPhase
+from app.game.engine import (
+    VIRTUAL_PLAYER_DISPLAY_NAME,
+    VIRTUAL_PLAYER_ID,
+    GameConfig,
+    GameRoom,
+    PowerUpStatus,
+    RoomPhase,
+)
 from app.game.validator import AnswerStatus, QuestionData, build_question_index
 
 P1, P2 = 1, 2
@@ -85,6 +92,48 @@ class TestMatchSetup:
         await join_both(room)
         await wait_for_phase(room, RoomPhase.ROUND_ACTIVE)
         assert len(events.of_type("round_active")) == 1
+
+
+class TestPracticeRoom:
+    async def test_dummy_starts_times_out_and_auto_accepts_rematch(self, monkeypatch):
+        events = EventCollector()
+
+        async def provider(exclude_ids, _player_ids):
+            return make_question(max(exclude_ids, default=0) + 1)
+
+        monkeypatch.setattr("app.game.engine.random.choice", lambda _order: VIRTUAL_PLAYER_ID)
+        room = GameRoom(
+            "TRAIN",
+            GameConfig(
+                turn_seconds=5,
+                practice_dummy_turn_seconds=0.03,
+                powerup_grace_ms=600,
+                preview_seconds=0.001,
+                intermission_seconds=0.001,
+                rounds_to_win=1,
+            ),
+            provider,
+            events,
+            practice=True,
+            creator_user_id=P1,
+        )
+
+        try:
+            assert await room.join(P1, "p1", "שחקן 1")
+            assert room.order == [P1, VIRTUAL_PLAYER_ID]
+            assert room.players[VIRTUAL_PLAYER_ID].display_name == VIRTUAL_PLAYER_DISPLAY_NAME
+            assert room.players[VIRTUAL_PLAYER_ID].connected
+            assert room.phase == RoomPhase.QUESTION_PREVIEW
+
+            await wait_for_phase(room, RoomPhase.MATCH_FINISHED)
+            assert events.of_type("turn_timeout")[-1]["user_id"] == VIRTUAL_PLAYER_ID
+            assert room.match_winner_id == P1
+
+            assert await room.request_rematch(P1)
+            assert room.phase == RoomPhase.QUESTION_PREVIEW
+            assert room.rematch_requests == set()
+        finally:
+            room.cancel_background_tasks()
 
 
 class TestTurns:

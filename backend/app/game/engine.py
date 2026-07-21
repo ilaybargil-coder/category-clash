@@ -30,6 +30,10 @@ logger = logging.getLogger(__name__)
 Broadcaster = Callable[[dict], Awaitable[None]]
 QuestionProvider = Callable[[set[int], tuple[int, ...]], Awaitable[Optional[QuestionData]]]
 
+VIRTUAL_PLAYER_ID = -1
+VIRTUAL_PLAYER_USERNAME = "practice-dummy"
+VIRTUAL_PLAYER_DISPLAY_NAME = "בובת אימון"
+
 
 class RoomPhase(str, Enum):
     WAITING_FOR_PLAYERS = "WAITING_FOR_PLAYERS"
@@ -54,6 +58,7 @@ class PowerUpStatus(str, Enum):
 @dataclass
 class GameConfig:
     turn_seconds: float = 15.0
+    practice_dummy_turn_seconds: float = 2.5
     powerup_grace_ms: int = 600
     preview_seconds: float = 4.0
     intermission_seconds: float = 4.0
@@ -128,12 +133,16 @@ class GameRoom:
         question_provider: QuestionProvider,
         broadcaster: Broadcaster,
         sink: ResultSink | None = None,
+        practice: bool = False,
+        creator_user_id: int | None = None,
     ) -> None:
         self.code = code
         self.config = config
         self._provider = question_provider
         self._broadcast_fn = broadcaster
         self._sink = sink or ResultSink()
+        self.practice = practice
+        self.creator_user_id = creator_user_id
 
         self.lock = asyncio.Lock()
         self.phase = RoomPhase.WAITING_FOR_PLAYERS
@@ -204,6 +213,11 @@ class GameRoom:
         remaining = max(0.0, self.turn_deadline - asyncio.get_running_loop().time())
         return now_ms() + int(remaining * 1000)
 
+    def _current_turn_seconds(self) -> float:
+        if self.practice and self.turn_user_id == VIRTUAL_PLAYER_ID:
+            return self.config.practice_dummy_turn_seconds
+        return self.config.turn_seconds
+
     def _powerups_payload(self) -> dict[str, dict[str, bool]]:
         return {
             str(uid): {
@@ -250,7 +264,7 @@ class GameRoom:
                 {"id": self.question.id, "text": self.question.text} if self.question else None
             ),
             turn_user_id=self.turn_user_id,
-            turn_seconds=self.config.turn_seconds,
+            turn_seconds=self._current_turn_seconds(),
             deadline_epoch_ms=self._deadline_epoch_ms(),
             answers=[
                 {
@@ -292,6 +306,12 @@ class GameRoom:
                 )
                 return True
 
+            if self.practice:
+                if self.creator_user_id is None:
+                    self.creator_user_id = user_id
+                elif user_id != self.creator_user_id:
+                    return False
+
             if len(self.players) >= 2 or self.phase != RoomPhase.WAITING_FOR_PLAYERS:
                 return False
 
@@ -300,6 +320,17 @@ class GameRoom:
             self.score[user_id] = 0
             self.powerups_used[user_id] = set()
             await self._emit("player_joined", players=self._players_payload())
+
+            if self.practice:
+                self.players[VIRTUAL_PLAYER_ID] = Player(
+                    VIRTUAL_PLAYER_ID,
+                    VIRTUAL_PLAYER_USERNAME,
+                    VIRTUAL_PLAYER_DISPLAY_NAME,
+                )
+                self.order.append(VIRTUAL_PLAYER_ID)
+                self.score[VIRTUAL_PLAYER_ID] = 0
+                self.powerups_used[VIRTUAL_PLAYER_ID] = set()
+                await self._emit("player_joined", players=self._players_payload())
 
             if len(self.players) == 2:
                 await self._start_match_locked()
@@ -444,18 +475,23 @@ class GameRoom:
                 "round_active",
                 round_no=self.round_no,
                 turn_user_id=self.turn_user_id,
-                turn_seconds=self.config.turn_seconds,
+                turn_seconds=self._current_turn_seconds(),
                 deadline_epoch_ms=self._deadline_epoch_ms(),
             )
 
     def _arm_timer_locked(self) -> None:
         self._timer_gen += 1
-        self.turn_deadline = asyncio.get_running_loop().time() + self.config.turn_seconds
+        self.turn_deadline = asyncio.get_running_loop().time() + self._current_turn_seconds()
         self._spawn(self._watch_timer(self._timer_gen, self.turn_deadline))
 
     async def _watch_timer(self, gen: int, deadline: float) -> None:
         loop = asyncio.get_running_loop()
-        effective_deadline = deadline + self.config.powerup_grace_ms / 1000
+        grace_seconds = (
+            0.0
+            if self.practice and self.turn_user_id == VIRTUAL_PLAYER_ID
+            else self.config.powerup_grace_ms / 1000
+        )
+        effective_deadline = deadline + grace_seconds
         await asyncio.sleep(max(0.0, effective_deadline - loop.time()))
         async with self.lock:
             if gen != self._timer_gen or self.phase != RoomPhase.ROUND_ACTIVE:
@@ -520,6 +556,8 @@ class GameRoom:
                 return False
 
             self.rematch_requests.add(user_id)
+            if self.practice:
+                self.rematch_requests.add(VIRTUAL_PLAYER_ID)
             await self._emit("rematch_updated", rematch=self._rematch_payload())
 
             if self.rematch_requests == set(self.order):
@@ -537,6 +575,9 @@ class GameRoom:
         """Returns the status; protocol-level rejections (NOT_YOUR_TURN etc.)
         are NOT broadcast — the caller acks them to the sender only."""
         async with self.lock:
+            if user_id == VIRTUAL_PLAYER_ID:
+                return AnswerStatus.NOT_YOUR_TURN
+
             # A retry of an already-processed submission (double-click, client
             # resend) returns the original verdict without any new record,
             # event or DB write.
@@ -641,6 +682,9 @@ class GameRoom:
     async def use_powerup(self, user_id: int, name: str, client_command_id: str) -> PowerUpStatus:
         arrival_time = asyncio.get_running_loop().time()
         async with self.lock:
+            if user_id == VIRTUAL_PLAYER_ID:
+                return PowerUpStatus.NOT_AVAILABLE
+
             cached = self._powerup_result(user_id, name, client_command_id)
             if cached is not None:
                 return cached
@@ -729,7 +773,11 @@ class GameRoom:
 
     @property
     def is_empty(self) -> bool:
-        return not any(p.connected for p in self.players.values())
+        return not any(
+            player.connected
+            for user_id, player in self.players.items()
+            if user_id != VIRTUAL_PLAYER_ID
+        )
 
     @property
     def is_over(self) -> bool:

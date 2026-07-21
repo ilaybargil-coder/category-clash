@@ -56,7 +56,9 @@ class RoomManager:
             if code not in self.rooms:
                 return code
 
-    def create_room(self) -> GameRoom:
+    def create_room(
+        self, *, practice: bool = False, creator_user_id: int | None = None
+    ) -> GameRoom:
         code = self._new_code()
 
         async def broadcast(event: dict) -> None:
@@ -67,7 +69,9 @@ class RoomManager:
             config=game_config_from_settings(),
             question_provider=make_question_provider(SessionLocal),
             broadcaster=broadcast,
-            sink=DbResultSink(SessionLocal),
+            sink=DbResultSink(SessionLocal, practice=practice),
+            practice=practice,
+            creator_user_id=creator_user_id,
         )
         self.rooms[code] = room
         return room

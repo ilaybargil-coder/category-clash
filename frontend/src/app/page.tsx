@@ -293,6 +293,7 @@ function GameActions({ user }: { user: SessionUser }) {
   const router = useRouter();
   const [joinCode, setJoinCode] = useState("");
   const [creating, setCreating] = useState(false);
+  const [creatingPractice, setCreatingPractice] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function createGame() {
@@ -304,6 +305,18 @@ function GameActions({ user }: { user: SessionUser }) {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "יצירת החדר נכשלה");
       setCreating(false);
+    }
+  }
+
+  async function createPracticeGame() {
+    setCreatingPractice(true);
+    setError(null);
+    try {
+      const { code } = await createRoom(true);
+      router.push(`/room/${code}`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "יצירת חדר התרגול נכשלה");
+      setCreatingPractice(false);
     }
   }
 
@@ -320,6 +333,7 @@ function GameActions({ user }: { user: SessionUser }) {
         <GameModeCard icon={<AppIcon name="new-game" className="h-6 w-6" />} label="מול חבר" title="משחק חדש" description="פתחו חדר פרטי והזמינו חבר לקרב בזמן אמת." action={creating ? "פותחים…" : "פתיחת חדר"} onClick={() => void createGame()} primary disabled={creating} />
         <GameModeCard icon={<AppIcon name="daily" className="h-6 w-6" />} label="פעם ביום" title="האתגר היומי" description="אותה קטגוריה לכולם. כמה גבוה תגיעו היום?" action="לאתגר היומי" onClick={() => router.push("/daily")} />
         <GameModeCard icon={<TargetIcon className="h-6 w-6" />} label="אימון חופשי" title="משחק יחיד" description="חדדו מהירות וגלו תשובות חדשות בלי לחץ." action="מתחילים להתאמן" onClick={() => router.push("/solo")} />
+        <GameModeCard icon={<AppIcon name="random" className="h-6 w-6" />} label="אימון 1 על 1" title="חדר תרגול" description="חוו את כל מהלך החדר מול יריב וירטואלי שהתור שלו נגמר במהירות." action={creatingPractice ? "פותחים…" : "חדר תרגול — שחקו לבד מול בובה"} onClick={() => void createPracticeGame()} disabled={creatingPractice} />
       </section>
       <section className="join-room-panel surface-panel">
         <div>

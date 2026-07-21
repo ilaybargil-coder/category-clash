@@ -236,8 +236,11 @@ export function deleteAccount() {
   return request<{ deleted: boolean }>("/api/account", { method: "DELETE" });
 }
 
-export function createRoom() {
-  return request<{ code: string }>("/api/rooms", { method: "POST" });
+export function createRoom(practice = false) {
+  return request<{ code: string }>("/api/rooms", {
+    method: "POST",
+    body: JSON.stringify({ practice }),
+  });
 }
 
 export function startSolo() {

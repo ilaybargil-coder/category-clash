@@ -63,6 +63,10 @@ class ProfileRequest(BaseModel):
     avatar: str | None = Field(default=None, pattern=r"^avatar-(0[1-9]|[12]\d|3\d|40)$")
 
 
+class CreateRoomRequest(BaseModel):
+    practice: bool = False
+
+
 def user_out(user: User) -> UserOut:
     xp = getattr(user, "xp", 0)
     level, xp_into_level, xp_for_next_level = xp_progress(xp)
@@ -319,8 +323,12 @@ async def delete_account(
 
 
 @router.post("/rooms")
-async def create_room(current: TokenUser = Depends(get_current_user)):
-    room = room_manager.create_room()
+async def create_room(
+    payload: CreateRoomRequest | None = None,
+    current: TokenUser = Depends(get_current_user),
+):
+    practice = payload.practice if payload is not None else False
+    room = room_manager.create_room(practice=practice, creator_user_id=current.id)
     return {"code": room.code}
 
 

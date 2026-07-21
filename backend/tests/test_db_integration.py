@@ -7,7 +7,7 @@ from sqlalchemy import delete, func, select, text, update
 
 from app.db import SessionLocal, engine
 from app.game.db_io import DbResultSink, make_question_provider
-from app.game.engine import GameConfig, GameRoom, RoomPhase
+from app.game.engine import VIRTUAL_PLAYER_ID, GameConfig, GameRoom, RoomPhase
 from app.game.validator import QuestionData, build_question_index
 from app.models import (
     AnswerAlias,
@@ -100,6 +100,89 @@ async def test_retried_command_persists_one_submitted_answer() -> None:
             task.cancel()
         async with SessionLocal() as session:
             await session.execute(delete(Match).where(Match.code == code))
+            await session.commit()
+
+
+@pytest.mark.integration
+@pytest.mark.skipif(
+    os.getenv("RUN_DB_INTEGRATION") != "1",
+    reason="set RUN_DB_INTEGRATION=1 with local PostgreSQL running",
+)
+async def test_practice_room_has_no_match_or_progression_writes(monkeypatch) -> None:
+    async with SessionLocal() as session:
+        creator = (await session.execute(select(User).order_by(User.id).limit(1))).scalar_one()
+        original_progress = (creator.xp, creator.wins, creator.losses, creator.win_streak)
+        served_id_before = int(await session.scalar(select(func.max(ServedQuestion.id))) or 0)
+
+    async def broadcast(_event: dict) -> None:
+        return None
+
+    monkeypatch.setattr("app.game.engine.random.choice", lambda _order: VIRTUAL_PLAYER_ID)
+    code = f"PR{uuid.uuid4().hex[:10].upper()}"
+    room = GameRoom(
+        code,
+        GameConfig(
+            turn_seconds=30,
+            practice_dummy_turn_seconds=0.02,
+            powerup_grace_ms=600,
+            preview_seconds=0.001,
+            intermission_seconds=0.001,
+            rounds_to_win=1,
+        ),
+        make_question_provider(SessionLocal),
+        broadcast,
+        DbResultSink(SessionLocal, practice=True),
+        practice=True,
+        creator_user_id=creator.id,
+    )
+
+    try:
+        assert await room.join(
+            creator.id,
+            creator.username,
+            creator.display_name,
+            creator.avatar,
+        )
+        assert room.players[VIRTUAL_PLAYER_ID].connected
+        for _ in range(100):
+            if room.phase == RoomPhase.MATCH_FINISHED:
+                break
+            await asyncio.sleep(0.005)
+        assert room.phase == RoomPhase.MATCH_FINISHED
+        assert room.match_winner_id == creator.id
+
+        async with SessionLocal() as session:
+            refreshed = await session.get(User, creator.id)
+            assert refreshed is not None
+            assert (
+                refreshed.xp,
+                refreshed.wins,
+                refreshed.losses,
+                refreshed.win_streak,
+            ) == original_progress
+            assert (
+                await session.scalar(
+                    select(func.count()).select_from(Match).where(Match.code == code)
+                )
+                == 0
+            )
+            assert (
+                await session.scalar(
+                    select(func.count())
+                    .select_from(ServedQuestion)
+                    .where(ServedQuestion.user_id == VIRTUAL_PLAYER_ID)
+                )
+                == 0
+            )
+    finally:
+        room.cancel_background_tasks()
+        async with SessionLocal() as session:
+            await session.execute(
+                delete(ServedQuestion).where(
+                    ServedQuestion.user_id == creator.id,
+                    ServedQuestion.id > served_id_before,
+                )
+            )
             await session.commit()
 
 

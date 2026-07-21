@@ -11,7 +11,7 @@ import {
 } from "@/components/icons";
 import { useGameSocket } from "@/hooks/useGameSocket";
 import { useViewportHeight } from "@/hooks/useViewportHeight";
-import { fetchMatchXpResult, refreshSessionUser } from "@/lib/api";
+import { ApiError, fetchMatchXpResult, refreshSessionUser } from "@/lib/api";
 import { BrandMark, UserAvatar } from "./VisualShell";
 import AnswerFeed from "./AnswerFeed";
 import TimerBar from "./TimerBar";
@@ -252,8 +252,12 @@ function GameView({
         }
         void refreshSessionUser();
       })
-      .catch(() => {
-        // The match result remains usable if the secondary XP request fails.
+      .catch((cause) => {
+        if (!cancelled && cause instanceof ApiError && cause.status === 404) {
+          setXpResult({ key: matchResultKey, xpAwarded: 0 });
+        }
+        // Practice matches intentionally have no persisted XP result. Other
+        // secondary XP failures likewise leave the match result usable.
       });
     return () => {
       cancelled = true;
