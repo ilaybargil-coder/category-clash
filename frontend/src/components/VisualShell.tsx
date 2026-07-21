@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { ArrowLeftIcon, CoinIcon, LightningIcon } from "@/components/icons";
+import { avatarSrc } from "@/lib/avatar";
 import type { SessionUser } from "@/lib/types";
 
 export type DashboardView =
@@ -103,10 +104,17 @@ export function UserAvatar({
   online?: boolean;
   size?: "sm" | "md" | "lg";
 }) {
-  const initials = name.trim().slice(0, 2) || "?";
   return (
-    <span className={`user-avatar user-avatar--${size}`} aria-label={name}>
-      {initials}
+    <span
+      className={`user-avatar user-avatar--${size} relative overflow-hidden rounded-full`}
+      aria-label={name}
+    >
+      <Image
+        src={avatarSrc(name)}
+        alt={name}
+        fill
+        style={{ objectFit: "cover" }}
+      />
       {online && <span className="online-dot" />}
     </span>
   );
