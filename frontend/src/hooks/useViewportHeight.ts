@@ -8,9 +8,12 @@ export function useViewportHeight() {
     const viewport = window.visualViewport;
     let animationFrame: number | null = null;
 
-    const updateHeight = () => {
+    const updateViewport = () => {
       const height = viewport?.height ?? window.innerHeight;
-      root.style.setProperty("--app-vh", `${Math.round(height)}px`);
+      const offsetTop = viewport?.offsetTop ?? 0;
+
+      root.style.setProperty("--app-vh", `${height}px`);
+      root.style.setProperty("--app-top", `${offsetTop}px`);
 
       if (viewport && window.innerHeight - viewport.height > 120) {
         root.dataset.kb = "open";
@@ -24,18 +27,21 @@ export function useViewportHeight() {
 
       animationFrame = window.requestAnimationFrame(() => {
         animationFrame = null;
-        updateHeight();
+        updateViewport();
       });
     };
 
-    const handleResize = () => scheduleUpdate();
+    const handleViewportChange = () => scheduleUpdate();
 
-    updateHeight();
+    updateViewport();
 
     if (viewport) {
-      viewport.addEventListener("resize", handleResize);
+      // iOS can pan the visual viewport when its keyboard opens. Height alone
+      // is insufficient: fixed game UI must also follow this changing offset.
+      viewport.addEventListener("resize", handleViewportChange);
+      viewport.addEventListener("scroll", handleViewportChange);
     } else {
-      window.addEventListener("resize", handleResize);
+      window.addEventListener("resize", handleViewportChange);
     }
 
     return () => {
@@ -43,11 +49,13 @@ export function useViewportHeight() {
         window.cancelAnimationFrame(animationFrame);
       }
       if (viewport) {
-        viewport.removeEventListener("resize", handleResize);
+        viewport.removeEventListener("resize", handleViewportChange);
+        viewport.removeEventListener("scroll", handleViewportChange);
       } else {
-        window.removeEventListener("resize", handleResize);
+        window.removeEventListener("resize", handleViewportChange);
       }
       root.style.removeProperty("--app-vh");
+      root.style.removeProperty("--app-top");
       delete root.dataset.kb;
     };
   }, []);

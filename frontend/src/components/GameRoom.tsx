@@ -309,10 +309,15 @@ function GameView({
   const pointsOf = (userId?: number) =>
     state.score.find((s) => s.user_id === userId)?.points ?? 0;
 
+  // iOS shifts the visual viewport as its keyboard opens; translate the
+  // layout-viewport-fixed game shell so it continues to cover what is visible.
   return (
     <main
-      className="app-background overflow-hidden p-2 sm:p-4"
-      style={{ height: "var(--app-vh, 100dvh)" }}
+      className="app-background fixed inset-x-0 top-0 overflow-hidden p-2 sm:p-4"
+      style={{
+        height: "var(--app-vh, 100dvh)",
+        transform: "translate3d(0, var(--app-top, 0px), 0)",
+      }}
     >
       <div className="mx-auto flex h-full min-h-0 max-w-[1280px] flex-col">
         <header className="mb-2 flex shrink-0 items-center justify-between px-2 py-1 lg:mb-3">
@@ -337,7 +342,7 @@ function GameView({
           </div>
         </header>
 
-        <section className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] gap-3 lg:grid-cols-[210px_minmax(0,1fr)_210px]">
+        <section className="grid min-h-0 flex-1 overflow-hidden gap-3 lg:grid-cols-[210px_minmax(0,1fr)_210px]">
           <PlayerPanel
             player={me}
             points={pointsOf(me?.user_id)}
@@ -346,7 +351,7 @@ function GameView({
             isYou
           />
 
-          <div className="surface-panel flex min-h-0 flex-col overflow-hidden rounded-2xl">
+          <div className="surface-panel flex h-full min-h-0 flex-col overflow-hidden rounded-2xl">
             <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-4 py-2.5 text-xs text-slate-500 lg:justify-center">
               <span className="lg:absolute lg:right-8">סיבוב {state.round_no || "-"}</span>
               <span className="rounded-full bg-black/25 px-4 py-1 font-bold text-slate-300">
