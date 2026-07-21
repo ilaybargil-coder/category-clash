@@ -55,3 +55,19 @@ def win_streak_bonus(current_streak: int) -> int:
     if current_streak < 0:
         raise ValueError("current_streak must be non-negative")
     return min(current_streak, 5) * 5
+
+
+def intense_game_bonus(total_answers: int) -> int:
+    """Return shared XP for a match with many valid answers."""
+
+    if total_answers < 0:
+        raise ValueError("total_answers must be non-negative")
+    return min(total_answers // 5, 5)
+
+
+def performance_bonus(player_valid_answers: int) -> int:
+    """Return XP for a player's own valid answers in one match."""
+
+    if player_valid_answers < 0:
+        raise ValueError("player_valid_answers must be non-negative")
+    return min(player_valid_answers, 5)

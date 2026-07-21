@@ -10,7 +10,13 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlalchemy.orm import selectinload
 
-from ..leveling import LOSS_XP, WIN_XP, win_streak_bonus
+from ..leveling import (
+    LOSS_XP,
+    WIN_XP,
+    intense_game_bonus,
+    performance_bonus,
+    win_streak_bonus,
+)
 from ..models import (
     ApprovedAnswer,
     Match,
@@ -246,29 +252,41 @@ class DbResultSink(ResultSink):
             match.status = "FINISHED" if reason == "SCORE" else "FORFEITED"
             match.finished_at = func.now()
             loser_id = match.player2_id if winner_id == match.player1_id else match.player1_id
-            users = {
-                user.id: user
-                for user in (
-                    (
-                        await session.execute(
-                            select(User)
-                            .where(User.id.in_(sorted((winner_id, loser_id))))
-                            .order_by(User.id)
-                            .with_for_update()
-                        )
-                    )
-                    .scalars()
-                    .all()
+            valid_answer_count = (
+                select(func.count(SubmittedAnswer.id))
+                .join(Round, Round.id == SubmittedAnswer.round_id)
+                .where(
+                    Round.match_id == match_id,
+                    SubmittedAnswer.user_id == User.id,
+                    SubmittedAnswer.status == "VALID",
                 )
-            }
+                .correlate(User)
+                .scalar_subquery()
+            )
+            player_rows = (
+                await session.execute(
+                    select(User, valid_answer_count.label("valid_answer_count"))
+                    .where(User.id.in_(sorted((winner_id, loser_id))))
+                    .order_by(User.id)
+                    .with_for_update()
+                )
+            ).all()
+            users = {user.id: user for user, _ in player_rows}
+            valid_answers = {user.id: int(answer_count) for user, answer_count in player_rows}
             winner = users[winner_id]
             loser = users[loser_id]
+            shared_bonus = intense_game_bonus(sum(valid_answers.values()))
 
             winner.wins += 1
             winner.win_streak += 1
-            winner.xp += WIN_XP + win_streak_bonus(winner.win_streak)
+            winner.xp += (
+                WIN_XP
+                + win_streak_bonus(winner.win_streak)
+                + shared_bonus
+                + performance_bonus(valid_answers[winner_id])
+            )
 
             loser.losses += 1
-            loser.xp += LOSS_XP
+            loser.xp += LOSS_XP + shared_bonus + performance_bonus(valid_answers[loser_id])
             loser.win_streak = 0
             await session.commit()

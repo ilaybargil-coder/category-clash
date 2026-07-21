@@ -2,7 +2,9 @@ import pytest
 
 from app.leveling import (
     cumulative_xp_for_level,
+    intense_game_bonus,
     level_for_xp,
+    performance_bonus,
     rank_for_level,
     win_streak_bonus,
     xp_progress,
@@ -82,3 +84,33 @@ def test_win_streak_bonus_formula(streak: int, expected_bonus: int) -> None:
 def test_win_streak_bonus_rejects_negative_streak() -> None:
     with pytest.raises(ValueError):
         win_streak_bonus(-1)
+
+
+@pytest.mark.parametrize(
+    ("total_answers", "expected_bonus"),
+    [(0, 0), (5, 1), (15, 3), (100, 5)],
+)
+def test_intense_game_bonus_formula(total_answers: int, expected_bonus: int) -> None:
+    assert intense_game_bonus(total_answers) == expected_bonus
+
+
+@pytest.mark.parametrize(
+    ("player_valid_answers", "expected_bonus"),
+    [(0, 0), (1, 1), (3, 3), (100, 5)],
+)
+def test_performance_bonus_formula(player_valid_answers: int, expected_bonus: int) -> None:
+    assert performance_bonus(player_valid_answers) == expected_bonus
+
+
+@pytest.mark.parametrize("bonus", [intense_game_bonus, performance_bonus])
+def test_skill_bonuses_are_non_negative_and_monotonic(bonus) -> None:
+    values = [bonus(answer_count) for answer_count in range(101)]
+
+    assert all(value >= 0 for value in values)
+    assert values == sorted(values)
+
+
+@pytest.mark.parametrize("bonus", [intense_game_bonus, performance_bonus])
+def test_skill_bonuses_reject_negative_answer_counts(bonus) -> None:
+    with pytest.raises(ValueError):
+        bonus(-1)
