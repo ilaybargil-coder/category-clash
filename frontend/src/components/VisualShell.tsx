@@ -63,7 +63,7 @@ export function BrandMark({
 
   return (
     <Image
-      src="/assets/logo.png?v=2"
+      src="/assets/logo-v2.png"
       alt="קרב קטגוריות"
       width={size}
       height={size}
