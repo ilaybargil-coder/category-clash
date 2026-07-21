@@ -19,6 +19,7 @@ export interface PlayerInfo {
   user_id: number;
   username: string;
   display_name: string;
+  avatar?: string | null;
   connected: boolean;
 }
 
@@ -84,6 +85,7 @@ export interface SessionUser {
   id: number;
   username: string;
   display_name: string;
+  avatar?: string | null;
   coins: number;
   wins: number;
   losses: number;

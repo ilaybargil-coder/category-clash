@@ -63,7 +63,7 @@ async def room_websocket(ws: WebSocket, code: str, token: str = Query(...)):
         await ws.close(code=WS_ROOM_NOT_FOUND)
         return
 
-    joined = await room.join(user.id, user.username, user.display_name)
+    joined = await room.join(user.id, user.username, user.display_name, user.avatar)
     if not joined:
         await ws.close(code=WS_ROOM_FULL)
         return

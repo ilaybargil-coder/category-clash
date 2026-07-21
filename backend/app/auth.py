@@ -22,6 +22,7 @@ class TokenUser:
     id: int
     username: str
     display_name: str
+    avatar: str | None = None
 
 
 @dataclass(frozen=True)
@@ -45,12 +46,18 @@ def verify_password(password: str, password_hash: str) -> bool:
         return False
 
 
-def create_access_token(user_id: int, username: str, display_name: str) -> str:
+def create_access_token(
+    user_id: int,
+    username: str,
+    display_name: str,
+    avatar: str | None = None,
+) -> str:
     """Create a legacy demo token for local development and automated tests."""
     payload = {
         "sub": str(user_id),
         "username": username,
         "display_name": display_name,
+        "avatar": avatar,
         "exp": datetime.now(timezone.utc) + timedelta(minutes=settings.jwt_expire_minutes),
     }
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
@@ -64,6 +71,7 @@ def decode_token(token: str) -> TokenUser | None:
             id=int(payload["sub"]),
             username=payload["username"],
             display_name=payload["display_name"],
+            avatar=payload.get("avatar"),
         )
     except (jwt.PyJWTError, KeyError, ValueError):
         return None
@@ -135,7 +143,12 @@ async def resolve_profile(identity: SupabaseIdentity, session: AsyncSession) -> 
     ).scalar_one_or_none()
     if user is None:
         return None
-    return TokenUser(id=user.id, username=user.username, display_name=user.display_name)
+    return TokenUser(
+        id=user.id,
+        username=user.username,
+        display_name=user.display_name,
+        avatar=user.avatar,
+    )
 
 
 async def authenticate_token(token: str, session: AsyncSession) -> TokenUser | None:

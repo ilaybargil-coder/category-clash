@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import AuthScreen from "@/components/AuthScreen";
+import AvatarPicker from "@/components/AvatarPicker";
 import DashboardFriendsCarousel from "@/components/DashboardFriendsCarousel";
 import FriendsPanel from "@/components/FriendsPanel";
 import InviteToast from "@/components/InviteToast";
@@ -36,6 +37,7 @@ import {
   deleteAccount,
   fetchDemoUsers,
   fetchXpLeaderboard,
+  getToken,
   getUser,
   refreshSessionUser,
   saveSession,
@@ -203,6 +205,7 @@ function XpLeaderboardPanel({
         user_id: user.id,
         display_name: user.display_name,
         username: user.username,
+        avatar: user.avatar,
         level: leaderboard.you.level,
         xp: leaderboard.you.xp,
       }
@@ -245,13 +248,14 @@ function XpLeaderboardRow({
 }) {
   return (
     <li
-      className={`grid grid-cols-[2rem_minmax(0,1fr)_auto_auto] items-center gap-3 rounded-xl border px-3 py-2.5 ${
+      className={`grid grid-cols-[2rem_2.25rem_minmax(0,1fr)_auto_auto] items-center gap-3 rounded-xl border px-3 py-2.5 ${
         current
           ? "border-violet-400/35 bg-violet-500/10"
           : "border-white/10 bg-white/[0.025]"
       }`}
     >
       <strong className="text-center text-amber-300">{entry.rank}</strong>
+      <UserAvatar name={entry.display_name} avatar={entry.avatar} size="sm" />
       <div className="min-w-0">
         <p className="truncate text-sm font-bold text-white">{entry.display_name}</p>
         <p className="truncate text-xs text-slate-500" dir="ltr">@{entry.username}</p>
@@ -378,7 +382,15 @@ function StatsView({ user, stats }: { user: SessionUser; stats: UserStats }) {
   );
 }
 
-function SettingsView({ user, onSignOut }: { user: SessionUser; onSignOut: () => void | Promise<void> }) {
+function SettingsView({
+  user,
+  onUserChange,
+  onSignOut,
+}: {
+  user: SessionUser;
+  onUserChange: (user: SessionUser) => void;
+  onSignOut: () => void | Promise<void>;
+}) {
   const [profile, setProfile] = useState(user);
   const [displayName, setDisplayName] = useState(user.display_name);
   const [password, setPassword] = useState("");
@@ -412,6 +424,7 @@ function SettingsView({ user, onSignOut }: { user: SessionUser; onSignOut: () =>
       if (refreshed) {
         setProfile(refreshed);
         setDisplayName(refreshed.display_name);
+        onUserChange(refreshed);
       }
       if (supabaseAccountActionsAvailable) {
         await getSupabaseClient().auth.refreshSession();
@@ -517,12 +530,23 @@ function SettingsView({ user, onSignOut }: { user: SessionUser; onSignOut: () =>
     );
   }
 
+  function changeAvatar(avatar: string) {
+    const updated = { ...profile, avatar };
+    setProfile(updated);
+    onUserChange(updated);
+  }
+
   return (
     <div className="dashboard-view">
       <ViewHeading eyebrow="החשבון שלך" title="הגדרות" description="פרטי החשבון ופעולות זמינות." />
       <section className="settings-panel surface-panel">
         <div className="settings-profile">
-          <UserAvatar name={profile.display_name} online size="lg" />
+          <UserAvatar
+            name={profile.display_name}
+            avatar={profile.avatar}
+            online
+            size="lg"
+          />
           <div><h2>{profile.display_name}</h2><p dir="ltr">@{profile.username}</p></div>
           <CoinPill coins={profile.coins} />
         </div>
@@ -532,6 +556,10 @@ function SettingsView({ user, onSignOut }: { user: SessionUser; onSignOut: () =>
         </div>
 
         <div className="grid gap-4 py-4 lg:grid-cols-2">
+          <AvatarPicker
+            currentAvatar={profile.avatar}
+            onAvatarChange={changeAvatar}
+          />
           <form onSubmit={changeDisplayName} className="rounded-xl border border-white/10 bg-white/[0.025] p-4">
             <h3 className="font-black text-white">שינוי כינוי</h3>
             <p className="mt-1 text-sm text-slate-400">זהו השם שיוצג לשחקנים אחרים.</p>
@@ -601,7 +629,15 @@ function ViewHeading({ eyebrow, title, description }: { eyebrow: string; title: 
   );
 }
 
-function LobbyDashboard({ user, onSignOut }: { user: SessionUser; onSignOut: () => void | Promise<void> }) {
+function LobbyDashboard({
+  user,
+  onUserChange,
+  onSignOut,
+}: {
+  user: SessionUser;
+  onUserChange: (user: SessionUser) => void;
+  onSignOut: () => void | Promise<void>;
+}) {
   useViewportHeight();
   const [activeView, setActiveView] = useState<DashboardView>("home");
   const stats = getUserStats(user);
@@ -618,13 +654,19 @@ function LobbyDashboard({ user, onSignOut }: { user: SessionUser; onSignOut: () 
         <section className="dashboard-center" dir="rtl">
           <header className="dashboard-mobile-header surface-panel">
             <BrandMark compact />
-            <div><CoinPill coins={user.coins} /><UserAvatar name={user.display_name} online size="sm" /></div>
+            <div><CoinPill coins={user.coins} /><UserAvatar name={user.display_name} avatar={user.avatar} online size="sm" /></div>
           </header>
           {activeView === "home" && <HomeView user={user} stats={stats} onNavigate={navigate} />}
           {activeView === "games" && <GameActions user={user} />}
           {activeView === "friends" && <div className="dashboard-view"><FriendsPanel key={user.id} /></div>}
           {activeView === "stats" && <StatsView user={user} stats={stats} />}
-          {activeView === "settings" && <SettingsView user={user} onSignOut={onSignOut} />}
+          {activeView === "settings" && (
+            <SettingsView
+              user={user}
+              onUserChange={onUserChange}
+              onSignOut={onSignOut}
+            />
+          )}
         </section>
         <ProfilePanel user={user} />
       </div>
@@ -655,7 +697,13 @@ function AuthenticatedLobby() {
       </main>
     );
   }
-  return <LobbyDashboard user={auth.user} onSignOut={auth.signOut} />;
+  return (
+    <LobbyDashboard
+      user={auth.user}
+      onUserChange={auth.updateUser}
+      onSignOut={auth.signOut}
+    />
+  );
 }
 
 function DemoLobby() {
@@ -684,7 +732,17 @@ function DemoLobby() {
   }, [userId]);
 
   if (user) {
-    return <LobbyDashboard user={user} onSignOut={() => { clearSession(); setUser(null); }} />;
+    return (
+      <LobbyDashboard
+        user={user}
+        onUserChange={(updated) => {
+          const token = getToken();
+          if (token) saveSession(token, updated);
+          setUser(updated);
+        }}
+        onSignOut={() => { clearSession(); setUser(null); }}
+      />
+    );
   }
 
   return (
@@ -696,7 +754,7 @@ function DemoLobby() {
         <div className="mt-5 grid grid-cols-2 gap-3">
           {demoUsers.map((demo) => (
             <button key={demo.user.username} onClick={() => { saveSession(demo.token, demo.user); setUser(demo.user); }} className="rounded-xl border border-white/10 bg-white/[0.025] p-4 text-center transition hover:border-violet-400/60 hover:bg-violet-500/10">
-              <UserAvatar name={demo.user.display_name} size="md" />
+              <UserAvatar name={demo.user.display_name} avatar={demo.user.avatar} size="md" />
               <div className="mt-3 font-black text-white">{demo.user.display_name}</div>
               <div className="text-xs text-slate-500">@{demo.user.username}</div>
             </button>

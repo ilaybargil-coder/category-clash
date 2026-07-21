@@ -531,7 +531,12 @@ function PlayerBadge({
 }) {
   return (
     <div className="flex min-w-0 flex-col items-center gap-1">
-      <UserAvatar name={player?.display_name ?? "?"} online={player?.connected} size="sm" />
+      <UserAvatar
+        name={player?.display_name ?? "?"}
+        avatar={player?.avatar}
+        online={player?.connected}
+        size="sm"
+      />
       <span className="max-w-24 truncate text-xs font-bold text-white">
         {player ? player.display_name : "—"}
         {isYou && <span className="text-violet-300"> · את/ה</span>}
@@ -566,7 +571,12 @@ function PlayerPanel({
   const accentText = accent === "purple" ? "text-violet-400" : "text-emerald-400";
   return (
     <aside className="surface-panel hidden min-h-0 flex-col items-center rounded-2xl p-5 text-center lg:flex">
-      <UserAvatar name={player?.display_name ?? "?"} online={player?.connected} size="lg" />
+      <UserAvatar
+        name={player?.display_name ?? "?"}
+        avatar={player?.avatar}
+        online={player?.connected}
+        size="lg"
+      />
       <h2 className="mt-4 max-w-full truncate text-lg font-black text-white">
         {player?.display_name ?? "ממתינים..."}
       </h2>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { GamepadIcon } from "@/components/icons";
+import { UserAvatar } from "@/components/VisualShell";
 import { useIncomingInvites } from "@/hooks/useIncomingInvites";
 import { acceptInvite, declineInvite } from "@/lib/api";
 
@@ -70,6 +71,12 @@ export default function InviteToast() {
       aria-live="polite"
       className="ui-toast surface-panel fixed inset-x-3 bottom-20 z-50 mx-auto flex max-w-md items-center gap-3 rounded-2xl border-violet-400/30 bg-violet-950/95 p-4 shadow-2xl lg:inset-x-auto lg:bottom-6 lg:right-6 lg:mx-0 lg:w-96"
     >
+      <UserAvatar
+        name={invite.sender.display_name}
+        avatar={invite.sender.avatar}
+        online
+        size="sm"
+      />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span aria-hidden="true" className="text-xl">

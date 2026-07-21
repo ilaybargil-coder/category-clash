@@ -25,6 +25,7 @@ class MatchXpResultOut(BaseModel):
 class MatchHistoryOpponentOut(BaseModel):
     display_name: str
     username: str
+    avatar: str | None
 
 
 class MatchHistoryScoreOut(BaseModel):
@@ -74,6 +75,7 @@ async def match_history(
                 opponent=MatchHistoryOpponentOut(
                     display_name=opponent.display_name,
                     username=opponent.username,
+                    avatar=opponent.avatar,
                 ),
                 won=match.winner_id == current.id,
                 score=MatchHistoryScoreOut(

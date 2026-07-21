@@ -26,6 +26,7 @@ export interface FriendUser {
   id: number;
   username: string;
   display_name: string;
+  avatar?: string | null;
 }
 
 export interface UserSearchResult extends FriendUser {
@@ -62,6 +63,7 @@ export interface XpLeaderboardEntry {
   user_id: number;
   display_name: string;
   username: string;
+  avatar?: string | null;
   level: number;
   xp: number;
 }
@@ -87,6 +89,7 @@ export interface MatchHistoryItem {
   opponent: {
     display_name: string;
     username: string;
+    avatar?: string | null;
   };
   won: boolean;
   score: {
@@ -219,6 +222,13 @@ export function updateProfile(username: string, displayName: string) {
   return request<SessionUser>("/api/profile", {
     method: "POST",
     body: JSON.stringify({ username, display_name: displayName }),
+  });
+}
+
+export function updateAvatar(avatar: string) {
+  return request<SessionUser>("/api/profile", {
+    method: "POST",
+    body: JSON.stringify({ avatar }),
   });
 }
 

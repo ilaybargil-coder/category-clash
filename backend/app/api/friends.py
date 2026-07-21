@@ -18,6 +18,7 @@ class FriendUserOut(BaseModel):
     id: int
     username: str
     display_name: str
+    avatar: str | None
 
 
 class UserSearchOut(FriendUserOut):
@@ -70,7 +71,12 @@ class RemovedFriendshipOut(BaseModel):
 
 
 def friend_user_out(user: User) -> FriendUserOut:
-    return FriendUserOut(id=user.id, username=user.username, display_name=user.display_name)
+    return FriendUserOut(
+        id=user.id,
+        username=user.username,
+        display_name=user.display_name,
+        avatar=user.avatar,
+    )
 
 
 def friendship_result(friendship: Friendship, friend: User) -> FriendshipResult:
@@ -206,6 +212,7 @@ async def search_users(
                 id=user.id,
                 username=user.username,
                 display_name=user.display_name,
+                avatar=user.avatar,
                 wins=user.wins,
                 losses=user.losses,
                 relation=relation,
@@ -412,6 +419,7 @@ async def list_friends(
             id=friend_id,
             username=users_by_id[friend_id].username,
             display_name=users_by_id[friend_id].display_name,
+            avatar=users_by_id[friend_id].avatar,
             wins=users_by_id[friend_id].wins,
             losses=users_by_id[friend_id].losses,
             friends_since=row.created_at,

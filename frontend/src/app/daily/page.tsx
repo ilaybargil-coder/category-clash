@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeftIcon, CheckIcon, LightningIcon, ShareIcon, TrophyIcon } from "@/components/icons";
+import { UserAvatar } from "@/components/VisualShell";
 import { useViewportHeight } from "@/hooks/useViewportHeight";
 import {
   API_URL,
@@ -53,6 +54,7 @@ interface LeaderboardEntry {
   user_id: number;
   username: string;
   display_name: string;
+  avatar?: string | null;
   score: number;
   created_at: string;
 }
@@ -396,6 +398,11 @@ export default function DailyPage() {
                     }`}
                   >
                     <span className="w-7 text-center font-black text-amber-300">{entry.rank}</span>
+                    <UserAvatar
+                      name={entry.display_name}
+                      avatar={entry.avatar}
+                      size="sm"
+                    />
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-bold text-white">{entry.display_name}</p>
                       <p className="truncate text-xs text-slate-500">@{entry.username}</p>

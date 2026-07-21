@@ -75,6 +75,7 @@ class Player:
     user_id: int
     username: str
     display_name: str
+    avatar: str | None = None
     connected: bool = True
 
 
@@ -191,6 +192,7 @@ class GameRoom:
                 "user_id": p.user_id,
                 "username": p.username,
                 "display_name": p.display_name,
+                "avatar": p.avatar,
                 "connected": p.connected,
             }
             for p in (self.players[uid] for uid in self.order)
@@ -271,7 +273,13 @@ class GameRoom:
 
     # ------------------------------------------------------------ join/leave
 
-    async def join(self, user_id: int, username: str, display_name: str) -> bool:
+    async def join(
+        self,
+        user_id: int,
+        username: str,
+        display_name: str,
+        avatar: str | None = None,
+    ) -> bool:
         """Add a player, or reconnect an existing one. False = room is full."""
         async with self.lock:
             existing = self.players.get(user_id)
@@ -287,7 +295,7 @@ class GameRoom:
             if len(self.players) >= 2 or self.phase != RoomPhase.WAITING_FOR_PLAYERS:
                 return False
 
-            self.players[user_id] = Player(user_id, username, display_name)
+            self.players[user_id] = Player(user_id, username, display_name, avatar)
             self.order.append(user_id)
             self.score[user_id] = 0
             self.powerups_used[user_id] = set()

@@ -93,6 +93,12 @@ export function useAuthSession() {
     setStatus("ready");
   }
 
+  function updateUser(profile: SessionUser) {
+    if (!token) return;
+    saveSession(token, profile);
+    setUser(profile);
+  }
+
   async function signOut() {
     syncGeneration.current += 1;
     await getSupabaseClient().auth.signOut();
@@ -102,5 +108,5 @@ export function useAuthSession() {
     setStatus("signed_out");
   }
 
-  return { status, user, token, error, profileReady, signOut };
+  return { status, user, token, error, profileReady, updateUser, signOut };
 }

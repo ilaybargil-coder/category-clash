@@ -19,6 +19,7 @@ class XpLeaderboardEntry(BaseModel):
     user_id: int
     display_name: str
     username: str
+    avatar: str | None
     level: int
     xp: int
 
@@ -69,6 +70,7 @@ async def xp_leaderboard(
                 user_id=user.id,
                 display_name=user.display_name,
                 username=user.username,
+                avatar=user.avatar,
                 level=level_for_xp(user.xp),
                 xp=user.xp,
             )

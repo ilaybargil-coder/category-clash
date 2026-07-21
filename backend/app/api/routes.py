@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
@@ -8,9 +9,11 @@ from ..auth import (
     SupabaseIdentity,
     TokenUser,
     create_access_token,
+    decode_token,
     get_current_user,
     get_supabase_identity,
     verify_password,
+    verify_supabase_identity,
 )
 from ..config import settings
 from ..db import get_session
@@ -19,6 +22,7 @@ from ..leveling import rank_for_level, xp_progress
 from ..models import User
 
 router = APIRouter(prefix="/api")
+_profile_bearer = HTTPBearer(auto_error=False)
 
 
 class LoginRequest(BaseModel):
@@ -30,6 +34,7 @@ class UserOut(BaseModel):
     id: int
     username: str
     display_name: str
+    avatar: str | None
     coins: int
     wins: int
     losses: int
@@ -51,8 +56,11 @@ class DemoSession(BaseModel):
 
 
 class ProfileRequest(BaseModel):
-    username: str = Field(min_length=3, max_length=24, pattern=r"^[A-Za-z0-9_]+$")
-    display_name: str = Field(min_length=2, max_length=64)
+    username: str | None = Field(
+        default=None, min_length=3, max_length=24, pattern=r"^[A-Za-z0-9_]+$"
+    )
+    display_name: str | None = Field(default=None, min_length=2, max_length=64)
+    avatar: str | None = Field(default=None, pattern=r"^avatar-(0[1-9]|[12]\d|3\d|40)$")
 
 
 def user_out(user: User) -> UserOut:
@@ -62,6 +70,7 @@ def user_out(user: User) -> UserOut:
         id=user.id,
         username=user.username,
         display_name=user.display_name,
+        avatar=getattr(user, "avatar", None),
         coins=user.coins,
         wins=user.wins,
         losses=user.losses,
@@ -92,7 +101,12 @@ async def demo_users(session: AsyncSession = Depends(get_session)):
     users = (await session.execute(select(User).order_by(User.id).limit(2))).scalars().all()
     return [
         DemoSession(
-            token=create_access_token(user.id, user.username, user.display_name),
+            token=create_access_token(
+                user.id,
+                user.username,
+                user.display_name,
+                getattr(user, "avatar", None),
+            ),
             user=user_out(user),
         )
         for user in users
@@ -113,7 +127,7 @@ async def demo_login(body: LoginRequest, session: AsyncSession = Depends(get_ses
     ):
         raise HTTPException(status_code=401, detail="Bad username or password")
     return LoginResponse(
-        token=create_access_token(user.id, user.username, user.display_name),
+        token=create_access_token(user.id, user.username, user.display_name, user.avatar),
         user=user_out(user),
     )
 
@@ -121,21 +135,41 @@ async def demo_login(body: LoginRequest, session: AsyncSession = Depends(get_ses
 @router.post("/profile", response_model=UserOut)
 async def create_profile(
     body: ProfileRequest,
-    identity: SupabaseIdentity = Depends(get_supabase_identity),
+    credentials: HTTPAuthorizationCredentials | None = Depends(_profile_bearer),
     session: AsyncSession = Depends(get_session),
 ):
-    existing = (
-        await session.execute(select(User).where(User.auth_user_id == identity.auth_user_id))
-    ).scalar_one_or_none()
+    if credentials is None:
+        raise HTTPException(status_code=401, detail="Missing credentials")
+
+    identity = None
+    if settings.auth_mode == "demo":
+        current = decode_token(credentials.credentials)
+        if current is None:
+            raise HTTPException(status_code=401, detail="Invalid token or missing profile")
+        existing = await session.get(User, current.id)
+    else:
+        identity = await verify_supabase_identity(credentials.credentials)
+        if identity is None:
+            raise HTTPException(status_code=401, detail="Invalid or expired token")
+        existing = (
+            await session.execute(select(User).where(User.auth_user_id == identity.auth_user_id))
+        ).scalar_one_or_none()
     if existing is not None:
-        display_name = body.display_name.strip()
-        if len(display_name) < 2:
-            raise HTTPException(status_code=422, detail="Display name is too short")
-        existing.display_name = display_name
+        if body.display_name is not None:
+            display_name = body.display_name.strip()
+            if len(display_name) < 2:
+                raise HTTPException(status_code=422, detail="Display name is too short")
+            existing.display_name = display_name
+        if "avatar" in body.model_fields_set:
+            existing.avatar = body.avatar
         await session.commit()
         await session.refresh(existing)
         return user_out(existing)
 
+    if body.username is None or body.display_name is None:
+        raise HTTPException(status_code=422, detail="Username and display name are required")
+    if identity is None:
+        raise HTTPException(status_code=404, detail="Profile required")
     display_name = body.display_name.strip()
     if len(display_name) < 2:
         raise HTTPException(status_code=422, detail="Display name is too short")
@@ -143,6 +177,7 @@ async def create_profile(
         auth_user_id=identity.auth_user_id,
         username=body.username.lower(),
         display_name=display_name,
+        avatar=body.avatar,
         password_hash=None,
         coins=100,
     )

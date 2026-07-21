@@ -80,6 +80,7 @@ class DailyLeaderboardEntry(BaseModel):
     user_id: int
     username: str
     display_name: str
+    avatar: str | None
     score: int
     created_at: datetime
 
@@ -376,6 +377,7 @@ async def daily_leaderboard(
                 user_id=result.user_id,
                 username=user.username,
                 display_name=user.display_name,
+                avatar=user.avatar,
                 score=result.score,
                 created_at=result.created_at,
             )

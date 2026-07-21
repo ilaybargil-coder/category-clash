@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { ArrowLeftIcon, CoinIcon, LightningIcon } from "@/components/icons";
-import { avatarSrc } from "@/lib/avatar";
+import { avatarSrcFor } from "@/lib/avatar";
 import type { SessionUser } from "@/lib/types";
 
 export type DashboardView =
@@ -97,23 +97,30 @@ export function BrandMark({ compact = false }: { compact?: boolean }) {
 
 export function UserAvatar({
   name,
+  avatar,
   online = false,
   size = "md",
 }: {
   name: string;
+  avatar?: string | null;
   online?: boolean;
   size?: "sm" | "md" | "lg";
 }) {
+  const fixedSize = {
+    sm: "h-9 w-9",
+    md: "h-[3.2rem] w-[3.2rem]",
+    lg: "h-20 w-20",
+  }[size];
+
   return (
     <span
-      className={`user-avatar user-avatar--${size} relative overflow-hidden rounded-full`}
+      className={`user-avatar user-avatar--${size} relative ${fixedSize} overflow-hidden rounded-full`}
       aria-label={name}
     >
-      <Image
-        src={avatarSrc(name)}
+      <img
+        src={avatarSrcFor(avatar, name)}
         alt={name}
-        fill
-        style={{ objectFit: "cover" }}
+        className="absolute inset-0 h-full w-full object-cover"
       />
       {online && <span className="online-dot" />}
     </span>
@@ -141,7 +148,7 @@ export function DesktopSidebar({
   return (
     <aside className="dashboard-left desktop-sidebar surface-panel" dir="rtl">
       <section className="sidebar-player-card">
-        <UserAvatar name={user.display_name} online size="lg" />
+        <UserAvatar name={user.display_name} avatar={user.avatar} online size="lg" />
         <h2>{user.display_name}</h2>
         <p dir="ltr">@{user.username}</p>
         <CoinPill coins={user.coins} />
@@ -200,7 +207,7 @@ export function RightSidebar({
     <aside className="dashboard-right" dir="rtl">
       <div className="right-sidebar__brand"><BrandMark compact /></div>
       <section className="right-mini-profile surface-panel">
-        <UserAvatar name={user.display_name} online size="md" />
+        <UserAvatar name={user.display_name} avatar={user.avatar} online size="md" />
         <div className="min-w-0 flex-1">
           <strong>{user.display_name}</strong>
           <span dir="ltr">@{user.username}</span>

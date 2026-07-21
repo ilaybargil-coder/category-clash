@@ -88,7 +88,12 @@ export default function DashboardFriendsCarousel({
             return (
               <article key={friend.id} className="friend-quick-card" role="listitem">
                 <div className="friend-quick-card__head">
-                  <UserAvatar name={friend.display_name} online={online} size="md" />
+                  <UserAvatar
+                    name={friend.display_name}
+                    avatar={friend.avatar}
+                    online={online}
+                    size="md"
+                  />
                   <span className={online ? "is-online" : ""}>
                     {online ? "מחובר/ת" : `רמה ${level}`}
                   </span>

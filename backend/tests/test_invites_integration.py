@@ -121,6 +121,7 @@ async def test_invite_list_and_single_accept(client, invite_users) -> None:
                 "id": sender.id,
                 "username": sender.username,
                 "display_name": sender.display_name,
+                "avatar": None,
             },
             "room_code": room_code,
             "expires_in_seconds": incoming.json()[0]["expires_in_seconds"],
