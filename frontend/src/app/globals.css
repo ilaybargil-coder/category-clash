@@ -378,6 +378,12 @@
     transition: padding-block 160ms ease;
   }
 
+  .game-question h1,
+  .game-question h2,
+  .game-question p {
+    color: inherit;
+  }
+
   .game-question > h1 {
     transition: margin-top 160ms ease, min-height 160ms ease, font-size 160ms ease;
   }

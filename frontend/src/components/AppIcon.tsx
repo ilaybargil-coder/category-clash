@@ -61,7 +61,7 @@ export default function AppIcon({
 }) {
   return (
     <img
-      src={`/assets/icons/${MAP[name]}.png?v=2`}
+      src={`/assets/icons/${MAP[name]}.png?v=3`}
       alt={alt}
       className={`${className} object-contain`}
       style={{ display: "block", maxWidth: "100%", maxHeight: "100%" }}

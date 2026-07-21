@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import AppIcon from "@/components/AppIcon";
+import { CheckIcon } from "@/components/icons";
+import { UserAvatar } from "@/components/VisualShell";
 import { useRouter } from "next/navigation";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import {
@@ -315,11 +316,18 @@ export default function FriendsPanel() {
                 key={request.id}
                 className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.025] p-3"
               >
-                <div className="min-w-0">
-                  <p className="truncate font-black">{request.user.display_name}</p>
-                  <p dir="ltr" className="truncate text-left text-xs text-slate-400">
-                    @{request.user.username}
-                  </p>
+                <div className="flex min-w-0 items-center gap-3">
+                  <UserAvatar
+                    name={request.user.display_name ?? request.user.username}
+                    avatar={request.user.avatar}
+                    size="sm"
+                  />
+                  <div className="min-w-0">
+                    <p className="truncate font-black">{request.user.display_name}</p>
+                    <p dir="ltr" className="truncate text-left text-xs text-slate-400">
+                      @{request.user.username}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex shrink-0 gap-2">
                   <button
@@ -377,28 +385,36 @@ export default function FriendsPanel() {
                 key={friend.id}
                 className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.025] p-3"
               >
-                <div className="min-w-0">
-                  <p className="truncate font-black">{friend.display_name}</p>
-                  <p dir="ltr" className="truncate text-left text-xs text-slate-400">
-                    @{friend.username}
-                  </p>
-                  <p
-                    className={`mt-1 flex items-center gap-1.5 text-xs font-bold ${
-                      onlineFriendIds.has(friend.id)
-                        ? "text-emerald-600"
-                        : "text-slate-400"
-                    }`}
-                  >
-                    <span
-                      className={`h-2 w-2 rounded-full ${
-                        onlineFriendIds.has(friend.id) ? "bg-emerald-500" : "bg-slate-300"
+                <div className="flex min-w-0 items-center gap-3">
+                  <UserAvatar
+                    name={friend.display_name ?? friend.username}
+                    avatar={friend.avatar}
+                    size="sm"
+                    online={onlineFriendIds.has(friend.id)}
+                  />
+                  <div className="min-w-0">
+                    <p className="truncate font-black">{friend.display_name}</p>
+                    <p dir="ltr" className="truncate text-left text-xs text-slate-400">
+                      @{friend.username}
+                    </p>
+                    <p
+                      className={`mt-1 flex items-center gap-1.5 text-xs font-bold ${
+                        onlineFriendIds.has(friend.id)
+                          ? "text-emerald-600"
+                          : "text-slate-400"
                       }`}
-                    />
-                    {onlineFriendIds.has(friend.id) ? "מחובר" : "לא מחובר"}
-                  </p>
-                  <p className="mt-1 text-xs text-emerald-600">
-                    נצחונות: {friend.wins} · הפסדים: {friend.losses}
-                  </p>
+                    >
+                      <span
+                        className={`h-2 w-2 rounded-full ${
+                          onlineFriendIds.has(friend.id) ? "bg-emerald-500" : "bg-slate-300"
+                        }`}
+                      />
+                      {onlineFriendIds.has(friend.id) ? "מחובר" : "לא מחובר"}
+                    </p>
+                    <p className="mt-1 text-xs text-emerald-600">
+                      נצחונות: {friend.wins} · הפסדים: {friend.losses}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex shrink-0 flex-col gap-2">
                   <button
@@ -465,11 +481,18 @@ export default function FriendsPanel() {
                 key={user.id}
                 className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.025] p-3"
               >
-                <div className="min-w-0">
-                  <p className="truncate font-black">{user.display_name}</p>
-                  <p dir="ltr" className="truncate text-left text-xs text-slate-400">
-                    @{user.username}
-                  </p>
+                <div className="flex min-w-0 items-center gap-3">
+                  <UserAvatar
+                    name={user.display_name ?? user.username}
+                    avatar={user.avatar}
+                    size="sm"
+                  />
+                  <div className="min-w-0">
+                    <p className="truncate font-black">{user.display_name}</p>
+                    <p dir="ltr" className="truncate text-left text-xs text-slate-400">
+                      @{user.username}
+                    </p>
+                  </div>
                 </div>
                 <RelationButton
                   user={user}
@@ -498,7 +521,7 @@ function RelationButton({
     none: "הוספה",
     outgoing_pending: "נשלחה בקשה",
     incoming_pending: "אישור בקשה",
-    friends: <><AppIcon name="correct" className="inline-block h-5 w-5 align-middle" /> חברים</>,
+    friends: <><CheckIcon className="inline-block h-4 w-4 align-middle" /> חברים</>,
   };
   const disabled = busy || user.relation === "outgoing_pending" || user.relation === "friends";
   return (

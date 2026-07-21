@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import AppIcon from "@/components/AppIcon";
+import { ArrowLeftIcon, CheckIcon, ReportIcon, ShareIcon } from "@/components/icons";
 import { UserAvatar } from "@/components/VisualShell";
 import { useViewportHeight } from "@/hooks/useViewportHeight";
 import {
@@ -258,7 +259,7 @@ export default function DailyPage() {
               onClick={() => router.push("/")}
               className="absolute right-4 top-4 text-sm font-bold text-slate-400 hover:text-white"
             >
-              חזרה ללובי <AppIcon name="back" className="inline-block h-4 w-4 align-middle" />
+              חזרה ללובי <ArrowLeftIcon className="inline-block h-4 w-4 align-middle" />
             </button>
             <p className="relative mt-7 text-xs font-black tracking-[0.16em] text-amber-300 sm:mt-0">
               <AppIcon name="daily" className="inline-block h-5 w-5 align-middle" /> האתגר היומי
@@ -283,7 +284,7 @@ export default function DailyPage() {
                   onClick={() => void shareResult(today.result!)}
                   className="primary-button mt-6 w-full px-6 py-3 sm:w-auto"
                 >
-                  שיתוף התוצאה <AppIcon name="share" className="inline-block h-4 w-4 align-middle" />
+                  שיתוף התוצאה <ShareIcon className="inline-block h-4 w-4 align-middle" />
                 </button>
                 {shareMessage && <p className="mt-3 text-sm font-bold text-slate-300">{shareMessage}</p>}
               </section>
@@ -431,7 +432,7 @@ function FeedbackChip({
   if (item.status === "VALID") {
     return (
       <span className="rounded-full bg-emerald-500/15 px-3 py-1.5 text-sm font-bold text-emerald-300">
-        <AppIcon name="correct" className="inline-block h-6 w-6 align-middle" /> {item.canonical}
+        <CheckIcon className="inline-block h-4 w-4 align-middle" /> {item.canonical}
       </span>
     );
   }
@@ -452,7 +453,7 @@ function FeedbackChip({
         onPointerDown={(event) => event.preventDefault()}
         className="text-xs font-bold text-rose-300/70 underline"
       >
-        <AppIcon name="report" className="inline-block h-6 w-6 align-middle" /> דווח
+        <ReportIcon className="inline-block h-4 w-4 align-middle" /> דווח
       </button>
     </span>
   );

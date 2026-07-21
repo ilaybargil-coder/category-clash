@@ -10,7 +10,7 @@ import FriendsPanel from "@/components/FriendsPanel";
 import InviteToast from "@/components/InviteToast";
 import MatchHistory from "@/components/MatchHistory";
 import AppIcon from "@/components/AppIcon";
-import { TargetIcon } from "@/components/icons";
+import { LightningIcon, PlusIcon, TargetIcon } from "@/components/icons";
 import {
   BrandMark,
   CoinPill,
@@ -133,10 +133,10 @@ function HomeView({
           </div>
           <div className="hero-actions">
             <button type="button" onClick={() => void createGame()} disabled={creating} className="primary-button">
-              {creating ? "פותחים זירה…" : <><AppIcon name="plus" className="inline-block h-5 w-5 align-middle" /> משחק חדש</>}
+              {creating ? "פותחים זירה…" : <><PlusIcon className="inline-block h-5 w-5 align-middle" /> משחק חדש</>}
             </button>
             <button type="button" onClick={() => router.push("/daily")} className="secondary-button">
-              <AppIcon name="daily" className="inline-block h-5 w-5 align-middle" /> אתגר יומי
+              <LightningIcon className="inline-block h-5 w-5 align-middle" /> אתגר יומי
             </button>
           </div>
           {error && <p className="inline-error">{error}</p>}

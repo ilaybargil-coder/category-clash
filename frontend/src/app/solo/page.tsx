@@ -2,8 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import AppIcon from "@/components/AppIcon";
-import { TargetIcon } from "@/components/icons";
+import { CheckIcon, ReportIcon, TargetIcon } from "@/components/icons";
 import { useViewportHeight } from "@/hooks/useViewportHeight";
 import {
   ApiError,
@@ -257,7 +256,7 @@ function FeedbackChip({
   reported: boolean;
   onReport: () => void;
 }) {
-  if (item.status === "VALID") return <span className="rounded-full bg-emerald-500/15 px-3 py-1.5 text-sm font-bold text-emerald-300"><AppIcon name="correct" className="inline-block h-6 w-6 align-middle" /> {item.canonical}</span>;
+  if (item.status === "VALID") return <span className="rounded-full bg-emerald-500/15 px-3 py-1.5 text-sm font-bold text-emerald-300"><CheckIcon className="inline-block h-4 w-4 align-middle" /> {item.canonical}</span>;
   if (item.status === "DUPLICATE" || item.status === "TOO_SIMILAR") return <span className="rounded-full bg-amber-500/15 px-3 py-1.5 text-sm font-bold text-amber-300">{item.text}: כבר נאמר</span>;
   return (
     <span className="rounded-full bg-rose-500/15 px-3 py-1.5 text-sm font-bold text-rose-300">
@@ -269,7 +268,7 @@ function FeedbackChip({
         onPointerDown={(event) => event.preventDefault()}
         className="text-xs font-bold text-rose-300/70 underline"
       >
-        <AppIcon name="report" className="inline-block h-6 w-6 align-middle" /> דווח
+        <ReportIcon className="inline-block h-4 w-4 align-middle" /> דווח
       </button>
     </span>
   );

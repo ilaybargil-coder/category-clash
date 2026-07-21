@@ -133,6 +133,31 @@ export function ShareIcon(props: IconProps) {
   );
 }
 
+export function SendIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M21.99 21 1 12 21.99 3 22 10 7 12l15 2-.01 7Z" />
+    </IconBase>
+  );
+}
+
+export function LinkIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M9.17 14.83a1.5 1.5 0 0 1 0-2.12l3.54-3.54a1.5 1.5 0 1 1 2.12 2.12l-3.54 3.54a1.5 1.5 0 0 1-2.12 0Z" />
+      <path d="m7.76 17.66-1.42-1.42-1.06 1.06a2.5 2.5 0 0 0 3.54 3.54l4.24-4.25a2.5 2.5 0 0 0 0-3.53l-.35-.35 2.12-2.12.35.35a5.5 5.5 0 0 1 0 7.77l-4.24 4.25a5.5 5.5 0 0 1-7.78-7.78l1.06-1.06 3.54 3.54Zm8.48-11.32 1.42 1.42 1.06-1.06a2.5 2.5 0 0 0-3.54-3.54l-4.24 4.25a2.5 2.5 0 0 0 0 3.53l.35.35-2.12 2.12-.35-.35a5.5 5.5 0 0 1 0-7.77l4.24-4.25a5.5 5.5 0 0 1 7.78 7.78l-1.06 1.06-3.54-3.54Z" />
+    </IconBase>
+  );
+}
+
+export function ReportIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M4 2h3v20H4V2Zm3 1h11.4a1 1 0 0 1 .8 1.6L16.65 8l2.55 3.4a1 1 0 0 1-.8 1.6H7V3Z" />
+    </IconBase>
+  );
+}
+
 export function CoinIcon(props: IconProps) {
   return (
     <IconBase {...props}>

@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import AppIcon from "@/components/AppIcon";
-import { ArrowLeftIcon } from "@/components/icons";
+import { ArrowLeftIcon, CoinIcon } from "@/components/icons";
 import { avatarSrcFor } from "@/lib/avatar";
 import type { SessionUser } from "@/lib/types";
 
@@ -25,31 +25,31 @@ const NAV_ITEMS: Array<{
     id: "home",
     label: "בית",
     shortLabel: "בית",
-    icon: <AppIcon name="home" className="h-7 w-7" />,
+    icon: <AppIcon name="home" className="h-8 w-8" />,
   },
   {
     id: "games",
     label: "משחקים",
     shortLabel: "משחקים",
-    icon: <AppIcon name="games" className="h-7 w-7" />,
+    icon: <AppIcon name="games" className="h-8 w-8" />,
   },
   {
     id: "friends",
     label: "חברים",
     shortLabel: "חברים",
-    icon: <AppIcon name="friends" className="h-7 w-7" />,
+    icon: <AppIcon name="friends" className="h-8 w-8" />,
   },
   {
     id: "stats",
     label: "סטטיסטיקות",
     shortLabel: "נתונים",
-    icon: <AppIcon name="statistics" className="h-7 w-7" />,
+    icon: <AppIcon name="statistics" className="h-8 w-8" />,
   },
   {
     id: "settings",
     label: "הגדרות",
     shortLabel: "הגדרות",
-    icon: <AppIcon name="settings" className="h-7 w-7" />,
+    icon: <AppIcon name="settings" className="h-8 w-8" />,
   },
 ];
 
@@ -103,7 +103,7 @@ export function CoinPill({ coins }: { coins: number }) {
   return (
     <div className="coin-pill" aria-label={`${coins} מטבעות`}>
       <span>{coins.toLocaleString("he-IL")}</span>
-      <span className="coin-icon" aria-hidden="true"><AppIcon name="coins" className="h-4 w-4" /></span>
+      <span className="coin-icon" aria-hidden="true"><CoinIcon className="h-4 w-4" /></span>
     </div>
   );
 }
@@ -152,11 +152,11 @@ export function DesktopSidebar({
 function DailyChallengeWidget() {
   return (
     <section className="dashboard-widget daily-widget">
-      <div className="daily-widget__icon" aria-hidden="true"><AppIcon name="daily" className="h-6 w-6" /></div>
+      <div className="daily-widget__icon" aria-hidden="true"><AppIcon name="daily" className="h-9 w-9" /></div>
       <div className="min-w-0 flex-1">
         <span>האתגר היומי</span>
         <h2>מוכנים לאתגר של היום?</h2>
-        <Link href="/daily" className="daily-widget__link">לאתגר היומי <ArrowLeftIcon className="h-3.5 w-3.5" /></Link>
+        <Link href="/daily" className="daily-widget__link">לאתגר היומי <ArrowLeftIcon className="h-4 w-4" /></Link>
       </div>
     </section>
   );
