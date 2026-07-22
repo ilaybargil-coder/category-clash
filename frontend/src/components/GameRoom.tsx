@@ -18,6 +18,10 @@ import { useViewportHeight } from "@/hooks/useViewportHeight";
 import { ApiError, fetchMatchXpResult, refreshSessionUser } from "@/lib/api";
 import { BrandMark, UserAvatar } from "./VisualShell";
 import AnswerFeed from "./AnswerFeed";
+import PowerupFx, {
+  type PowerupFxEvent,
+  type PowerupType,
+} from "./PowerupFx";
 import TimerBar from "./TimerBar";
 import {
   isMuted,
@@ -165,7 +169,15 @@ function GameView({
     authoritativeDeadlineEpochMs: number;
     displayedDeadlineEpochMs: number;
   } | null>(null);
+  const [powerupFxEvent, setPowerupFxEvent] =
+    useState<PowerupFxEvent | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const previousPowerupsRef = useRef({
+    stateSyncRevision,
+    roundNo: state.round_no,
+    powerups: state.powerups,
+    deadlineEpochMs: state.deadline_epoch_ms,
+  });
   const handledRoundResultRef = useRef(
     state.last_round_result
       ? `${state.last_round_result.round_no}:${state.last_round_result.winner_user_id}:${state.last_round_result.loser_user_id}`
@@ -198,6 +210,71 @@ function GameView({
   useEffect(() => {
     if (myTurn) inputRef.current?.focus();
   }, [myTurn]);
+
+  useEffect(() => {
+    const previous = previousPowerupsRef.current;
+    const isFreshSnapshot =
+      previous.stateSyncRevision !== stateSyncRevision ||
+      previous.roundNo !== state.round_no;
+
+    if (!isFreshSnapshot) {
+      const powerupKeys = [
+        ["swap_question", "swap_question"],
+        ["extend_time", "extend_time"],
+        ["joker", "use_joker"],
+      ] as const;
+
+      for (const [stateKey, type] of powerupKeys) {
+        const actorEntry = Object.entries(state.powerups).find(
+          ([userId, availability]) =>
+            previous.powerups[userId]?.[stateKey] === true &&
+            availability[stateKey] === false
+        );
+        if (!actorEntry) continue;
+
+        const actorUserId = Number(actorEntry[0]);
+        const deadlineIncreaseMs =
+          type === "extend_time" &&
+          previous.deadlineEpochMs !== null &&
+          state.deadline_epoch_ms !== null
+            ? state.deadline_epoch_ms - previous.deadlineEpochMs
+            : 0;
+
+        setPowerupFxEvent({
+          id: `${state.event_id || state.seq}:${actorUserId}:${type}`,
+          type,
+          actor: actorUserId === state.you ? "you" : "opponent",
+          extendSeconds:
+            type === "extend_time"
+              ? Math.max(
+                  1,
+                  Math.round(deadlineIncreaseMs / 1000) || state.turn_seconds
+                )
+              : undefined,
+          roundNo: state.round_no,
+          phase: state.phase,
+        });
+        break;
+      }
+    }
+
+    previousPowerupsRef.current = {
+      stateSyncRevision,
+      roundNo: state.round_no,
+      powerups: state.powerups,
+      deadlineEpochMs: state.deadline_epoch_ms,
+    };
+  }, [
+    state.deadline_epoch_ms,
+    state.event_id,
+    state.phase,
+    state.powerups,
+    state.round_no,
+    state.seq,
+    state.turn_seconds,
+    state.you,
+    stateSyncRevision,
+  ]);
 
   useEffect(() => {
     const updateMuteState = setTimeout(() => setSoundMuted(isMuted()), 0);
@@ -485,11 +562,14 @@ function GameView({
           <BackHomeLink />
         </Overlay>
       )}
+      <PowerupFx
+        event={powerupFxEvent}
+        roundNo={state.round_no}
+        phase={state.phase}
+      />
     </main>
   );
 }
-
-type PowerupType = "swap_question" | "extend_time" | "use_joker";
 
 function PowerButton({
   label,
