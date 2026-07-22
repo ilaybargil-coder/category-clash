@@ -27,9 +27,10 @@ class AnswerStatus(str, Enum):
 # Hebrew final letters -> regular form, so "אגוזין" == "אגוזים" style typos
 # in final position don't break matching.
 _FINAL_LETTERS = str.maketrans({"ך": "כ", "ם": "מ", "ן": "נ", "ף": "פ", "ץ": "צ"})
-# Hebrew cantillation + niqqud marks, except the sin dot. Keeping that one mark
-# lets the skeleton distinguish explicit sin (שׂ) from ambiguous unpointed ש.
-_NIKUD_RE = re.compile(r"[\u0591-\u05c1\u05c3-\u05c7]")
+# Hebrew cantillation + niqqud marks. Explicit sin is converted to ס before
+# these marks are removed, while an unpointed ש remains distinct.
+_EXPLICIT_SIN_RE = re.compile(r"ש\u05c2")
+_NIKUD_RE = re.compile(r"[\u0591-\u05bd\u05bf\u05c1\u05c2\u05c4\u05c5\u05c7]")
 # Quote-like marks (geresh, gershayim, apostrophes) are removed entirely so
 # that "ליצ'י" == "ליצי"; all other punctuation becomes a space so that
 # "סוסון-ים" == "סוסון ים".
@@ -37,6 +38,26 @@ _QUOTES_RE = re.compile(r"[׳״'\"`”“’‘]")
 _PUNCT_RE = re.compile(r"[^\w\s\u05c2]|_")
 _WHITESPACE_RE = re.compile(r"\s+")
 _DOUBLED_MATRES_RE = re.compile(r"([וי])\1+")
+_HEBREW_RE = re.compile(r"^[\u05d0-\u05ea ]+$")
+
+# Prefixes are stripped only from a submitted answer, after an exact lookup
+# has failed. Short stems are deliberately excluded because strings such as
+# כלוב/לוב and מדינה/דינה are different words, not safe prefix variants.
+_HEBREW_PREFIX_MIN_STEM_LENGTH = {
+    "וה": 3,
+    "בה": 6,
+    "כה": 6,
+    "לה": 6,
+    "מה": 6,
+    "שה": 6,
+    "ה": 3,
+    "ו": 3,
+    "ב": 6,
+    "כ": 6,
+    "ל": 6,
+    "מ": 6,
+    "ש": 6,
+}
 
 # Physical Hebrew keyboard positions. Final letters are normalized before
 # matching, so a letter can legitimately have more than one key position.
@@ -54,12 +75,12 @@ SKELETON_FOLDS: dict[str, str] = {
     "ת": "ת",
     "כ": "כ",
     "ק": "כ",
-    "ח": "כ",
     "ס": "ס",
-    "שׂ": "ס",
     "א": "א",
     "ע": "א",
     "ה": "א",
+    "ו": "ו",
+    "ב": "ו",
 }
 
 
@@ -77,10 +98,19 @@ def _keyboard_positions() -> dict[str, list[tuple[int, float]]]:
 _KEY_POSITIONS = _keyboard_positions()
 
 
+def _compact(text: str) -> str:
+    return text.replace(" ", "")
+
+
 def normalize_answer(text: str) -> str:
     normalized = unicodedata.normalize("NFKC", text or "")
     normalized = normalized.lower()
+    normalized = _EXPLICIT_SIN_RE.sub("ס", normalized)
     normalized = _NIKUD_RE.sub("", normalized)
+    normalized = "".join(
+        str(unicodedata.digit(character)) if unicodedata.category(character) == "Nd" else character
+        for character in normalized
+    )
     normalized = normalized.translate(_FINAL_LETTERS)
     normalized = _QUOTES_RE.sub("", normalized)
     normalized = _PUNCT_RE.sub(" ", normalized)
@@ -92,8 +122,52 @@ def skeleton_form(normalized: str) -> str:
     """Fold conservative Hebrew spelling variants into a stable skeleton."""
 
     skeleton = _DOUBLED_MATRES_RE.sub(r"\1", normalized)
-    skeleton = skeleton.replace("שׂ", SKELETON_FOLDS["שׂ"])
-    return "".join(SKELETON_FOLDS.get(character, character) for character in skeleton)
+    skeleton = "".join(SKELETON_FOLDS.get(character, character) for character in skeleton)
+    return _DOUBLED_MATRES_RE.sub(r"\1", skeleton)
+
+
+def _safe_skeleton_pair(typed: str, approved: str) -> bool:
+    """Bound phonetic matching to short, recognizable spelling changes."""
+
+    if typed == approved:
+        return True
+    typed_compact = _compact(typed)
+    approved_compact = _compact(approved)
+    if _DOUBLED_MATRES_RE.sub(r"\1", typed_compact) == _DOUBLED_MATRES_RE.sub(
+        r"\1", approved_compact
+    ):
+        return min(len(typed_compact), len(approved_compact)) >= 3
+    if min(len(typed_compact), len(approved_compact)) < 4:
+        return False
+    if len(typed_compact) != len(approved_compact):
+        return False
+
+    distance = _damerau_levenshtein(typed_compact, approved_compact, 2)
+    if distance <= 1:
+        if len(typed_compact) < 5:
+            mismatches = {
+                typed_char
+                for typed_char, approved_char in zip(typed_compact, approved_compact, strict=True)
+                if typed_char != approved_char
+            } | {
+                approved_char
+                for typed_char, approved_char in zip(typed_compact, approved_compact, strict=True)
+                if typed_char != approved_char
+            }
+            if mismatches and mismatches <= {"א", "ע", "ה"}:
+                return False
+        return True
+    if distance > 2:
+        return False
+
+    # Two bet/vav substitutions occur in established transliterations such
+    # as וולוו/בולבו. Other two-fold phonetic changes are too permissive.
+    mismatches = [
+        (typed_char, approved_char)
+        for typed_char, approved_char in zip(typed_compact, approved_compact, strict=True)
+        if typed_char != approved_char
+    ]
+    return len(typed_compact) >= 5 and all(set(pair) <= {"ב", "ו"} for pair in mismatches)
 
 
 @dataclass(frozen=True)
@@ -107,29 +181,67 @@ class QuestionIndex:
     """Normalized form -> approved answer lookup for a single question."""
 
     def __init__(self) -> None:
-        self._by_form: dict[str, ApprovedEntry] = {}
-        self._by_skeleton: dict[str, set[int]] = {}
+        self._by_form: dict[str, set[int]] = {}
+        self._by_compact: dict[str, set[int]] = {}
+        self._by_skeleton: dict[str, dict[int, set[str]]] = {}
         self._by_answer_id: dict[int, ApprovedEntry] = {}
 
     def add_form(self, form: str, entry: ApprovedEntry) -> None:
         key = normalize_answer(form)
         if not key:
             return
-        if key not in self._by_form:
-            self._by_form[key] = entry
         self._by_answer_id.setdefault(entry.answer_id, entry)
-        self._by_skeleton.setdefault(skeleton_form(key), set()).add(entry.answer_id)
+        self._by_form.setdefault(key, set()).add(entry.answer_id)
+        self._by_compact.setdefault(_compact(key), set()).add(entry.answer_id)
+        forms = self._by_skeleton.setdefault(skeleton_form(key), {})
+        forms.setdefault(entry.answer_id, set()).add(key)
 
     def lookup(self, normalized: str) -> ApprovedEntry | None:
-        return self._by_form.get(normalized)
+        return self._unique_entry(self._by_form.get(normalized, set()))
+
+    def lookup_compact(self, normalized: str) -> ApprovedEntry | None:
+        """Ignore word separators only when they identify one answer."""
+
+        compact = _compact(normalized)
+        if len(compact) < 3:
+            return None
+        return self._unique_entry(self._by_compact.get(compact, set()))
 
     def lookup_skeleton(self, normalized: str) -> ApprovedEntry | None:
         """Resolve a spelling skeleton only when it identifies one answer."""
 
-        answer_ids = self._by_skeleton.get(skeleton_form(normalized), set())
-        if len(answer_ids) != 1:
-            return None
-        return self._by_answer_id[next(iter(answer_ids))]
+        candidates = self._by_skeleton.get(skeleton_form(normalized), {})
+        answer_ids = {
+            answer_id
+            for answer_id, forms in candidates.items()
+            if any(_safe_skeleton_pair(normalized, form) for form in forms)
+        }
+        return self._unique_entry(answer_ids)
+
+    def lookup_prefixed(
+        self,
+        normalized: str,
+        *,
+        definite_article_enabled: bool,
+    ) -> tuple[ApprovedEntry | None, bool]:
+        """Resolve a bounded Hebrew grammatical prefix without guessing."""
+
+        answer_ids: set[int] = set()
+        for prefix, min_stem_length in _HEBREW_PREFIX_MIN_STEM_LENGTH.items():
+            if prefix.endswith("ה") and not definite_article_enabled:
+                continue
+            if not normalized.startswith(prefix):
+                continue
+            stem = normalized[len(prefix) :].lstrip()
+            if (
+                len(_compact(stem)) < min_stem_length
+                or not stem
+                or _HEBREW_RE.fullmatch(stem) is None
+            ):
+                continue
+            answer_ids.update(self._by_form.get(stem, set()))
+            answer_ids.update(self._by_compact.get(_compact(stem), set()))
+        return self._unique_entry(answer_ids), len(answer_ids) > 1
 
     def lookup_unique_prefix(
         self,
@@ -150,9 +262,10 @@ class QuestionIndex:
             return None
 
         matches: dict[int, ApprovedEntry] = {}
-        for form, entry in self._by_form.items():
+        for form, answer_ids in self._by_form.items():
             if form.startswith(normalized):
-                matches[entry.answer_id] = entry
+                for answer_id in answer_ids:
+                    matches[answer_id] = self._by_answer_id[answer_id]
                 if len(matches) > 1:
                     return None
         if len(matches) != 1:
@@ -178,22 +291,33 @@ class QuestionIndex:
 
         closest_distance = allowed_distance + 1
         matches: dict[int, ApprovedEntry] = {}
-        for form, entry in self._by_form.items():
+        closest_answer_ids: set[int] = set()
+        for form, answer_ids in self._by_form.items():
             distance = _damerau_levenshtein(normalized, form, allowed_distance)
-            if distance > allowed_distance or not _safe_typo_pair(normalized, form):
+            if distance > allowed_distance:
                 continue
             if distance < closest_distance:
                 closest_distance = distance
-                matches = {entry.answer_id: entry}
+                closest_answer_ids = set(answer_ids)
+                matches = {}
             elif distance == closest_distance:
-                matches[entry.answer_id] = entry
+                closest_answer_ids.update(answer_ids)
 
-        if len(matches) != 1:
+            if distance == closest_distance and _safe_typo_pair(normalized, form):
+                for answer_id in answer_ids:
+                    matches[answer_id] = self._by_answer_id[answer_id]
+
+        if len(closest_answer_ids) != 1 or len(matches) != 1:
             return None
         return next(iter(matches.values()))
 
     def __len__(self) -> int:
         return len(self._by_form)
+
+    def _unique_entry(self, answer_ids: set[int]) -> ApprovedEntry | None:
+        if len(answer_ids) != 1:
+            return None
+        return self._by_answer_id[next(iter(answer_ids))]
 
 
 @dataclass
@@ -239,6 +363,7 @@ class RoundValidator:
         unique_prefix_enabled: bool = True,
         unique_prefix_min_length: int = 3,
         definite_article_enabled: bool = True,
+        hebrew_prefixes_enabled: bool = True,
     ) -> None:
         self._index = index
         self._max_length = max_length
@@ -250,6 +375,7 @@ class RoundValidator:
         self._unique_prefix_enabled = unique_prefix_enabled
         self._unique_prefix_min_length = unique_prefix_min_length
         self._definite_article_enabled = definite_article_enabled
+        self._hebrew_prefixes_enabled = hebrew_prefixes_enabled
         self._used_answer_ids: set[int] = set()
         self._used_groups: set[str] = set()
 
@@ -261,12 +387,17 @@ class RoundValidator:
             return ValidationResult(AnswerStatus.INVALID, None, normalized)
 
         entry = self._index.lookup(normalized)
-        if entry is None and self._definite_article_enabled and normalized.startswith("ה"):
-            # Accept natural forms such as "המסך" without storing a noisy
-            # duplicate alias for every Hebrew noun. Exact forms always win,
-            # so legitimate answers that begin with ה are never altered.
-            without_article = normalized[1:].lstrip()
-            entry = self._index.lookup(without_article)
+        if entry is None:
+            entry = self._index.lookup_compact(normalized)
+        if entry is None and self._hebrew_prefixes_enabled:
+            # Exact forms always win, so legitimate answers that begin with a
+            # prefix letter (for example, הולנד) are never altered.
+            entry, prefix_is_ambiguous = self._index.lookup_prefixed(
+                normalized,
+                definite_article_enabled=self._definite_article_enabled,
+            )
+            if prefix_is_ambiguous:
+                return ValidationResult(AnswerStatus.INVALID, None, normalized)
         if entry is None and self._unique_prefix_enabled:
             entry = self._index.lookup_unique_prefix(
                 normalized,
@@ -340,7 +471,7 @@ def _keys_are_neighbors(left: str, right: str) -> bool:
 
 
 def _safe_typo_pair(typed: str, approved: str) -> bool:
-    """Apply stricter rules to short words where one edit is more dangerous."""
+    """Accept only keyboard-neighbor, transposition, or bounded insertion slips."""
 
     if typed == approved:
         return True
@@ -352,9 +483,7 @@ def _safe_typo_pair(typed: str, approved: str) -> bool:
         ]
         if len(mismatches) == 1:
             index = mismatches[0]
-            if min(len(typed.replace(" ", "")), len(approved.replace(" ", ""))) <= 4:
-                return _keys_are_neighbors(typed[index], approved[index])
-            return True
+            return _keys_are_neighbors(typed[index], approved[index])
         if len(mismatches) == 2:
             first, second = mismatches
             if (
@@ -362,11 +491,21 @@ def _safe_typo_pair(typed: str, approved: str) -> bool:
                 and typed[first] == approved[second]
                 and typed[second] == approved[first]
             ):
-                return True
-        # Once both forms are longer than the risky short-word range, the
-        # bounded edit distance is the safety rule.
-        return min(len(typed.replace(" ", "")), len(approved.replace(" ", ""))) >= 5
+                return min(len(_compact(typed)), len(_compact(approved))) >= 4
+            return min(len(_compact(typed)), len(_compact(approved))) >= 7 and all(
+                _keys_are_neighbors(typed[index], approved[index]) for index in mismatches
+            )
+        return False
 
-    # Missing/extra letters are common, but too risky for words of four or
-    # fewer letters (for example, one short real word becoming another).
-    return max(len(typed.replace(" ", "")), len(approved.replace(" ", ""))) >= 5
+    if abs(len(typed) - len(approved)) != 1:
+        return False
+
+    longer, shorter = (typed, approved) if len(typed) > len(approved) else (approved, typed)
+    # Accidental doubled keystrokes are safe down to four-letter answers.
+    for index in range(1, len(longer)):
+        if longer[index] == longer[index - 1] and longer[:index] + longer[index + 1 :] == shorter:
+            return len(_compact(shorter)) >= 4
+
+    # Arbitrary missing/extra letters remain available only for long words;
+    # they are too likely to turn one real short word into another.
+    return max(len(_compact(typed)), len(_compact(approved))) >= 7

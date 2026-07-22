@@ -1,3 +1,5 @@
+import pytest
+
 from app.game.validator import (
     AnswerStatus,
     RoundValidator,
@@ -152,10 +154,10 @@ class TestTypoTolerance:
         assert result.entry is not None
         assert result.entry.canonical == "דולפין"
 
-    def test_accepts_two_edits_at_scaled_long_length(self):
+    def test_accepts_two_keyboard_neighbor_edits_at_scaled_long_length(self):
         index = build_question_index([(1, "דולפינים", None, [])])
         validator = RoundValidator(index, fuzzy_enabled=True)
-        assert validator.check("דולבענים").status == AnswerStatus.VALID
+        assert validator.check("שולצינים").status == AnswerStatus.VALID
 
     def test_rejects_two_edits_below_scaled_length(self):
         index = build_question_index([(1, "דולפין", None, [])])
@@ -178,15 +180,15 @@ class TestHebrewSkeletonTolerance:
         validator = RoundValidator(index, hebrew_skeleton_enabled=True)
         assert validator.check("טלויזיה").status == AnswerStatus.VALID
 
-    def test_accepts_guttural_spelling_variant(self):
-        index = build_question_index([(1, "חתול", None, [])])
+    def test_accepts_kaf_kuf_spelling_variant(self):
+        index = build_question_index([(1, "קונצרט", None, [])])
         validator = RoundValidator(index, hebrew_skeleton_enabled=True)
-        assert validator.check("כתול").status == AnswerStatus.VALID
+        assert validator.check("כונצרט").status == AnswerStatus.VALID
 
     def test_accepts_tet_tav_spelling_variant(self):
-        index = build_question_index([(1, "פתה", None, [])])
+        index = build_question_index([(1, "טורקיה", None, [])])
         validator = RoundValidator(index, hebrew_skeleton_enabled=True)
-        assert validator.check("פטה").status == AnswerStatus.VALID
+        assert validator.check("תורקיה").status == AnswerStatus.VALID
 
     def test_accepts_doubled_vav_variant(self):
         index = build_question_index([(1, "וורד", None, [])])
@@ -196,41 +198,41 @@ class TestHebrewSkeletonTolerance:
     def test_rejects_ambiguous_skeleton(self):
         index = build_question_index(
             [
-                (1, "חתול", None, []),
-                (2, "כתול", None, []),
+                (1, "אבטיח", None, []),
+                (2, "עבטיח", None, []),
             ]
         )
         validator = RoundValidator(index, hebrew_skeleton_enabled=True)
-        assert validator.check("קתול").status == AnswerStatus.INVALID
+        assert validator.check("הבטיח").status == AnswerStatus.INVALID
 
     def test_exact_answer_wins_despite_skeleton_collision(self):
         index = build_question_index(
             [
-                (1, "חתול", None, []),
-                (2, "כתול", None, []),
+                (1, "אבטיח", None, []),
+                (2, "עבטיח", None, []),
             ]
         )
-        result = RoundValidator(index, hebrew_skeleton_enabled=True).check("חתול")
+        result = RoundValidator(index, hebrew_skeleton_enabled=True).check("אבטיח")
         assert result.status == AnswerStatus.VALID
         assert result.entry is not None
         assert result.entry.answer_id == 1
 
     def test_skeleton_match_preserves_duplicate_logic(self):
-        index = build_question_index([(1, "חתול", None, [])])
+        index = build_question_index([(1, "קונצרט", None, [])])
         validator = RoundValidator(index, hebrew_skeleton_enabled=True)
-        assert validator.check("חתול").status == AnswerStatus.VALID
-        assert validator.check("כתול").status == AnswerStatus.DUPLICATE
+        assert validator.check("קונצרט").status == AnswerStatus.VALID
+        assert validator.check("כונצרט").status == AnswerStatus.DUPLICATE
 
     def test_skeleton_match_preserves_semantic_group_logic(self):
         index = build_question_index(
             [
-                (1, "חתול", "pet", []),
-                (2, "כלב", "pet", []),
+                (1, "קונצרט", "music", []),
+                (2, "טורקיה", "music", []),
             ]
         )
         validator = RoundValidator(index, hebrew_skeleton_enabled=True)
-        assert validator.check("חתול").status == AnswerStatus.VALID
-        assert validator.check("חלב").status == AnswerStatus.TOO_SIMILAR
+        assert validator.check("קונצרט").status == AnswerStatus.VALID
+        assert validator.check("תורקיה").status == AnswerStatus.TOO_SIMILAR
 
 
 class TestSafeCompletion:
@@ -291,3 +293,123 @@ class TestSafeCompletion:
         result = RoundValidator(index).check("הולנד")
         assert result.entry is not None
         assert result.entry.canonical == "הולנד"
+
+
+@pytest.mark.parametrize(
+    ("left", "right"),
+    [
+        pytest.param("מלך", "מלכ", id="final-kaf"),
+        pytest.param("תום", "תומ", id="final-mem"),
+        pytest.param("ישן", "ישנ", id="final-nun"),
+        pytest.param("אלף", "אלפ", id="final-pe"),
+        pytest.param("ארץ", "ארצ", id="final-tsadi"),
+        pytest.param("מַנְגּוֹ", "מנגו", id="niqqud"),
+        pytest.param("ליצ׳י", "ליצי", id="geresh"),
+        pytest.param("צה״ל", "צהל", id="gershayim"),
+        pytest.param("סוסון־ים", "סוסון ים", id="maqaf"),
+        pytest.param("  ניו\tיורק\n", "ניו יורק", id="unicode-whitespace"),
+        pytest.param("ＢＭＷ", "bmw", id="fullwidth-latin"),
+        pytest.param("אייפון ١٥", "אייפון 15", id="arabic-indic-digits"),
+        pytest.param("תפוּשׂ", "תפוס", id="explicit-sin"),
+    ],
+)
+def test_normalization_equivalent_surface_forms(left: str, right: str):
+    assert normalize_answer(left) == normalize_answer(right)
+
+
+def _surface_validator(*canonicals: str) -> RoundValidator:
+    return RoundValidator(
+        build_question_index(
+            [
+                (answer_id, canonical, None, [])
+                for answer_id, canonical in enumerate(canonicals, start=1)
+            ]
+        ),
+        fuzzy_enabled=True,
+        hebrew_skeleton_enabled=True,
+        unique_prefix_enabled=False,
+    )
+
+
+@pytest.mark.parametrize(
+    ("canonical", "submitted"),
+    [
+        pytest.param("סוסון ים", "סוסוןים", id="removed-space"),
+        pytest.param("קוקה קולה", "קוקה-קולה", id="ascii-hyphen"),
+        pytest.param("iPhone 15", "IPHONE-15", id="latin-brand-digit"),
+        pytest.param("BMW X5", "ｂｍｗ־ｘ٥", id="mixed-width-brand"),
+        pytest.param("PlayStation 5", "playstation5", id="latin-brand-compact"),
+        pytest.param("מסוק", "המסוק", id="definite-article"),
+        pytest.param("תפוחים", "ותפוחים", id="conjunction-prefix"),
+        pytest.param("תפוחים", "בתפוחים", id="bet-prefix"),
+        pytest.param("תפוחים", "כתפוחים", id="kaf-prefix"),
+        pytest.param("תפוחים", "לתפוחים", id="lamed-prefix"),
+        pytest.param("תפוחים", "מתפוחים", id="mem-prefix"),
+        pytest.param("תפוחים", "שתפוחים", id="shin-prefix"),
+        pytest.param("תפוחים", "והתפוחים", id="stacked-conjunction-article"),
+        pytest.param("טלוויזיה", "טלויזייה", id="double-vav-and-yod"),
+        pytest.param("וורד", "ורד", id="double-vav"),
+        pytest.param("קונצרט", "כונצרט", id="kaf-kuf"),
+        pytest.param("טורקיה", "תורקיה", id="tet-tav"),
+        pytest.param("עיראק", "איראק", id="guttural-vowel-carrier"),
+        pytest.param("וניל", "בניל", id="bet-vav"),
+        pytest.param("וולוו", "בולבו", id="bet-double-vav-brand"),
+        pytest.param("תפוס", "תפוּשׂ", id="samekh-explicit-sin"),
+        pytest.param("מסוק", "מסןק", id="hebrew-neighbor-key"),
+        pytest.param("מנגו", "מנוג", id="adjacent-transposition"),
+        pytest.param("מנגו", "מנגגו", id="accidental-double-letter"),
+        pytest.param("דולפינים", "שולצינים", id="two-bounded-neighbor-typos"),
+        pytest.param("adidas", "adidqs", id="latin-neighbor-key"),
+    ],
+)
+def test_surface_recall_battery(canonical: str, submitted: str):
+    result = _surface_validator(canonical).check(submitted)
+    assert result.status == AnswerStatus.VALID
+    assert result.entry is not None
+    assert result.entry.canonical == canonical
+
+
+@pytest.mark.parametrize(
+    ("canonical", "submitted"),
+    [
+        pytest.param("כלב", "כלוב", id="explicit-near-word-regression"),
+        pytest.param("כלב", "חלב", id="het-is-not-kaf"),
+        pytest.param("אור", "עור", id="short-guttural-real-words"),
+        pytest.param("מאיר", "מעיר", id="four-letter-guttural-real-words"),
+        pytest.param("פתה", "פטה", id="short-tet-tav-risk"),
+        pytest.param("לילה", "כלילה", id="short-kaf-prefix-risk"),
+        pytest.param("בתאי", "שבתאי", id="short-shin-prefix-risk"),
+        pytest.param("דינה", "מדינה", id="short-mem-prefix-risk"),
+        pytest.param("כלב", "כבל", id="short-real-word-transposition"),
+        pytest.param("מסוק", "מסאק", id="non-neighbor-substitution"),
+        pytest.param("דולפין", "דולביא", id="two-edits-below-threshold"),
+        pytest.param("iphone15", "iphone16", id="different-model-number"),
+        pytest.param("adidas", "adidos", id="non-neighbor-latin-substitution"),
+        pytest.param("סוס", "שוש", id="unpointed-shin-is-not-sin"),
+        pytest.param("לב", "לו", id="short-bet-vav-real-words"),
+        pytest.param("מנגו", "בננה", id="unrelated-fruit"),
+        pytest.param("קם", "מתעורר", id="semantic-synonym-is-not-surface-match"),
+    ],
+)
+def test_surface_precision_battery(canonical: str, submitted: str):
+    assert _surface_validator(canonical).check(submitted).status == AnswerStatus.INVALID
+
+
+def test_normalized_form_collision_is_rejected():
+    validator = _surface_validator("ליצ'י", "ליצי")
+    assert validator.check("ליצ׳י").status == AnswerStatus.INVALID
+
+
+def test_compact_form_collision_is_rejected():
+    validator = _surface_validator("אב גד", "א בגד")
+    assert validator.check("אבגד").status == AnswerStatus.INVALID
+
+
+def test_prefix_expansions_that_point_to_two_answers_are_rejected():
+    validator = _surface_validator("תפוחים", "התפוחים")
+    assert validator.check("והתפוחים").status == AnswerStatus.INVALID
+
+
+def test_hebrew_prefix_matching_can_be_disabled():
+    validator = RoundValidator(make_index(), hebrew_prefixes_enabled=False)
+    assert validator.check("המסוק").status == AnswerStatus.INVALID
