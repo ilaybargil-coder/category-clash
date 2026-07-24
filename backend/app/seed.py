@@ -3733,8 +3733,8 @@ TARGETED_QUESTION_ENRICHMENTS: dict[str, list[tuple[str, list[str], str | None]]
             None,
         ),
         (
-            "אי איי ספורטס אף סי",
-            ["EA Sports FC", "EA FC", "אף סי"],
+            "פיפא",
+            ["אי איי ספורטס אף סי", "EA Sports FC", "EA FC", "EA Sports FC 24"],
             None,
         ),
         (
