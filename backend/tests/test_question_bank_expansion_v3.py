@@ -7,6 +7,7 @@ from app.question_bank_expansion_v3 import (
     QUESTION_EXPANSIONS_V3,
 )
 from app.question_bank_expansion_v10 import QUESTION_SOURCES_V10
+from app.question_bank_expansion_v11 import QUESTION_SOURCES_V11
 from app.seed import DEACTIVATED_QUESTION_TEXTS, QUESTIONS
 
 BY_QUESTION = {question["text"]: question for question in QUESTIONS}
@@ -33,9 +34,16 @@ def exact_forms(question_text: str) -> set[str]:
 def test_every_question_was_reviewed_and_has_sources():
     question_names = set(BY_QUESTION)
     reviewed = (
-        set(QUESTION_EXPANSIONS_V3) | set(ANSWER_ALIAS_ADDITIONS_V3) | set(QUESTION_SOURCES_V10)
+        set(QUESTION_EXPANSIONS_V3)
+        | set(ANSWER_ALIAS_ADDITIONS_V3)
+        | set(QUESTION_SOURCES_V10)
+        | set(QUESTION_SOURCES_V11)
     )
-    all_sources = {**QUESTION_EXPANSION_SOURCES_V3, **QUESTION_SOURCES_V10}
+    all_sources = {
+        **QUESTION_EXPANSION_SOURCES_V3,
+        **QUESTION_SOURCES_V10,
+        **QUESTION_SOURCES_V11,
+    }
     assert question_names <= reviewed
     active_source_names = set(all_sources) - set(DEACTIVATED_QUESTION_TEXTS)
     assert question_names == active_source_names
