@@ -15,6 +15,7 @@ from .api.presence import router as presence_router
 from .api.reports import router as reports_router
 from .api.routes import router as api_router
 from .api.solo import router as solo_router
+from .api.survey import router as survey_router
 from .config import settings
 from .db import engine
 from .redis import close_redis
@@ -86,4 +87,5 @@ app.include_router(invites_router)
 app.include_router(leaderboard_router)
 app.include_router(matches_router)
 app.include_router(solo_router)
+app.include_router(survey_router)
 app.include_router(ws_router)
